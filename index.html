@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#fce4ec" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1a0d14" media="(prefers-color-scheme: dark)">
 <title>七七 ❤️</title>
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="/qiqi/manifest.json">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💕</text></svg>">
 <style>
 /* ========== CSS Variables & Reset ========== */
@@ -1257,7 +1257,7 @@ async function init() {
   // Register Service Worker
   if ('serviceWorker' in navigator) {
     try {
-      await navigator.serviceWorker.register('./sw.js');
+      await navigator.serviceWorker.register('/qiqi/sw.js', { scope: '/qiqi/' });
       console.log('SW registered');
     } catch(e) {
       console.log('SW registration skipped:', e.message);
