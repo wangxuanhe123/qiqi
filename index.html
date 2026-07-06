@@ -567,6 +567,9 @@ textarea.setting-input {
         你的老婆，温柔又有点小脾气<br>
         先点击右上角 ⚙️ 设置 API Key 吧～
       </div>
+      <button class="btn btn-primary" id="installBtnWc" style="margin-top:16px;display:none;font-size:16px;padding:12px 32px;" onclick="installPWA()">
+        📲 安装到主屏幕
+      </button>
     </div>
   </div>
 
@@ -1157,7 +1160,10 @@ async function clearChat() {
   w.innerHTML = `
     <div class="welcome-avatar">${config.avatar}</div>
     <div class="welcome-title">${config.name}在这里 ❤️</div>
-    <div class="welcome-sub">你们的对话从这里重新开始～</div>`;
+    <div class="welcome-sub">你们的对话从这里重新开始～</div>
+    <button class="btn btn-primary" id="installBtnWc" style="margin-top:16px;display:none;font-size:16px;padding:12px 32px;" onclick="installPWA()">
+      📲 安装到主屏幕
+    </button>`;
   chatArea.appendChild(w);
   showToast('✅ 聊天记录已清空');
 }
@@ -1213,7 +1219,10 @@ async function loadChatHistory() {
     w.innerHTML = `
       <div class="welcome-avatar">${config.avatar}</div>
       <div class="welcome-title">${config.name}在这里 ❤️</div>
-      <div class="welcome-sub">先点击右上角 ⚙️ 设置 API Key 吧～</div>`;
+      <div class="welcome-sub">先点击右上角 ⚙️ 设置 API Key 吧～</div>
+      <button class="btn btn-primary" id="installBtnWc" style="margin-top:16px;display:none;font-size:16px;padding:12px 32px;" onclick="installPWA()">
+        📲 安装到主屏幕
+      </button>`;
     chatArea.appendChild(w);
   } else {
     for (const msg of msgs) {
@@ -1267,7 +1276,32 @@ async function init() {
     if (!localStorage.getItem('qiqi_install_dismissed')) {
       $('#installBanner').classList.remove('hidden');
     }
+    // Also show install button in welcome
+    const installBtn = $('#installBtnWc');
+    if (installBtn) installBtn.style.display = 'block';
   });
+
+  // Check if already installed
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    console.log('Already running as PWA');
+    const banner = $('#installBanner');
+    if (banner) banner.classList.add('hidden');
+  } else {
+    // Not installed yet - after a short delay, show a hint
+    setTimeout(() => {
+      // If deferredPrompt never fired (Chrome heuristics), still show manual hint
+      if (!deferredPrompt) {
+        const installBtn = $('#installBtnWc');
+        if (installBtn) {
+          installBtn.style.display = 'block';
+          installBtn.textContent = '📲 点此安装（或点浏览器⋮→安装应用）';
+          installBtn.onclick = () => {
+            showToast('请点击浏览器右上角 ⋮ → 安装应用 / 添加到主屏幕');
+          };
+        }
+      }
+    }, 2000);
+  }
 
   // Listen for app installed
   window.addEventListener('appinstalled', () => {
