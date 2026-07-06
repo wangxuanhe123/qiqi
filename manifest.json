@@ -2,23 +2,41 @@
   "name": "七七 - AI伴侣",
   "short_name": "七七",
   "description": "你和七七的私人小窝",
-  "start_url": "./index.html",
+  "start_url": "/qiqi/",
+  "scope": "/qiqi/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#fce4ec",
   "theme_color": "#ff6b9d",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "categories": ["social", "entertainment"],
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/qiqi/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "icon-512.png",
+      "src": "/qiqi/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/qiqi/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/qiqi/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
