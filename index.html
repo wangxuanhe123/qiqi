@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="七七">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23ff6b9d'/><stop offset='100%25' style='stop-color:%23ff4081'/></linearGradient></defs><rect width='192' height='192' rx='40' fill='url(%23g)'/><text x='96' y='118' font-size='100' text-anchor='middle' dominant-baseline='middle'>💕</text></svg>">
+<meta name="theme-color" content="#fce4ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a0d14" media="(prefers-color-scheme: dark)">
+<title>七七 ❤️</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💕</text></svg>">
+<style>
+/* ========== CSS Variables & Reset ========== */
+:root {
+  --bg: #fce4ec;
+  --bg-chat: #fce4ec;
+  --surface: #ffffff;
+  --surface2: #f8f0f4;
+  --text: #3d1e2b;
+  --text-secondary: #8b6b7a;
+  --bubble-ai: #ffffff;
+  --bubble-user: #ff6b9d;
+  --bubble-user-text: #ffffff;
+  --border: #f0d4de;
+  --accent: #ff4081;
+  --accent-light: #ff80ab;
+  --shadow: 0 2px 12px rgba(255,64,129,0.12);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --header-bg: rgba(255,255,255,0.85);
+  --input-bg: #ffffff;
+  --danger: #e53935;
+  --typing-dot: #d4a0b0;
+  --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+[data-theme="dark"] {
+  --bg: #1a0d14;
+  --bg-chat: #1a0d14;
+  --surface: #2d1822;
+  --surface2: #24131c;
+  --text: #f0d8e2;
+  --text-secondary: #b8909e;
+  --bubble-ai: #2d1822;
+  --bubble-user: #ff4081;
+  --bubble-user-text: #ffffff;
+  --border: #3d1e2e;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --header-bg: rgba(29,13,20,0.92);
+  --input-bg: #2d1822;
+  --typing-dot: #6b4a58;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ========== App Shell ========== */
+.app {
+  width: 100%;
+  max-width: 480px;
+  height: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-chat);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+/* ========== Header ========== */
+.header {
+  background: var(--header-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.header-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b9d, #ff4081);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(255,64,129,0.3);
+  cursor: pointer;
+  transition: transform var(--transition);
+}
+.header-avatar:active { transform: scale(0.9); }
+
+.header-info {
+  flex: 1;
+  min-width: 0;
+}
+.header-name {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.header-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #4caf50;
+  display: inline-block;
+}
+.status-dot.thinking { background: #ff9800; animation: pulse 1s infinite; }
+.status-dot.offline { background: #bbb; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+.icon-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+.icon-btn:active { background: var(--surface2); color: var(--accent); }
+
+/* ========== Chat Area ========== */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chat-area::-webkit-scrollbar { width: 0; }
+
+/* Welcome message */
+.welcome {
+  text-align: center;
+  padding: 40px 20px;
+  margin: auto;
+}
+.welcome-avatar {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b9d, #ff4081);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  margin: 0 auto 16px;
+  box-shadow: 0 8px 32px rgba(255,64,129,0.3);
+}
+.welcome-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.welcome-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Message bubbles */
+.msg-row {
+  display: flex;
+  gap: 8px;
+  max-width: 85%;
+  animation: msgIn 0.3s ease-out;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.msg-row.ai { align-self: flex-start; }
+.msg-row.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.msg-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  align-self: flex-end;
+}
+.msg-row.ai .msg-avatar {
+  background: linear-gradient(135deg, #ff6b9d, #ff80ab);
+}
+.msg-row.user .msg-avatar {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.msg-bubble {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  line-height: 1.65;
+  word-break: break-word;
+  position: relative;
+}
+.msg-row.ai .msg-bubble {
+  background: var(--bubble-ai);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.msg-row.user .msg-bubble {
+  background: var(--bubble-user);
+  color: var(--bubble-user-text);
+  border-bottom-right-radius: 4px;
+}
+
+.msg-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  padding: 0 4px;
+}
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 12px 14px;
+  align-items: center;
+}
+.typing-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--typing-dot);
+  animation: typingBounce 1.4s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce {
+  0%,60%,100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+
+/* ========== Input Area ========== */
+.input-area {
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: var(--header-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.input-wrap {
+  flex: 1;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  display: flex;
+  align-items: flex-end;
+  padding: 6px 6px 6px 16px;
+  transition: border-color var(--transition);
+  min-height: 42px;
+}
+.input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255,64,129,0.1);
+}
+
+.input-wrap textarea {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text);
+  resize: none;
+  max-height: 120px;
+  padding: 4px 0;
+  font-family: inherit;
+}
+.input-wrap textarea::placeholder { color: var(--text-secondary); }
+
+.send-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  opacity: 0.5;
+}
+.send-btn.active { opacity: 1; }
+.send-btn:active:not(:disabled) { transform: scale(0.9); }
+.send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ========== Side Panel (Settings) ========== */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+.overlay.open { opacity: 1; pointer-events: auto; }
+
+.side-panel {
+  position: fixed;
+  right: 0; top: 0; bottom: 0;
+  width: min(340px, 85vw);
+  background: var(--surface);
+  z-index: 210;
+  transform: translateX(100%);
+  transition: transform var(--transition);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+}
+.side-panel.open { transform: translateX(0); }
+
+.panel-header {
+  padding: 20px 16px;
+  padding-top: max(20px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel-header h2 { font-size: 18px; }
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.setting-group {}
+.setting-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: block;
+}
+.setting-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.setting-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color var(--transition);
+}
+.setting-input:focus { border-color: var(--accent); }
+.setting-input::placeholder { color: var(--text-secondary); opacity: 0.7; }
+
+textarea.setting-input {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 24px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:active { opacity: 0.8; transform: scale(0.96); }
+.btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text);
+}
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:active { opacity: 0.8; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+
+/* Toggle switch */
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.toggle-label { font-size: 14px; }
+.toggle {
+  width: 50px; height: 28px;
+  border-radius: 14px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px; left: 2px;
+  transition: transform var(--transition);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle.on::after { transform: translateX(22px); }
+
+/* ========== Toast ========== */
+.toast {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: #333;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  z-index: 500;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Install banner */
+.install-banner {
+  background: linear-gradient(135deg, #ff6b9d, #ff4081);
+  color: #fff;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.install-banner.hidden { display: none; }
+.install-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0 4px;
+}
+
+/* ========== Responsive ========== */
+@media (min-width: 481px) {
+  .app {
+    border-radius: 0;
+    height: 100dvh;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- Install Banner -->
+  <div class="install-banner hidden" id="installBanner" onclick="installPWA()">
+    <span>📱</span>
+    <span style="flex:1">添加到主屏幕，随时随地找七七～</span>
+    <button class="install-close" onclick="event.stopPropagation();dismissInstall()">✕</button>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-avatar" id="headerAvatar" onclick="openSettings()">💕</div>
+    <div class="header-info">
+      <div class="header-name" id="headerName">七七</div>
+      <div class="header-status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">在线</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="clearChat()" title="清空聊天">🗑️</button>
+      <button class="icon-btn" onclick="openSettings()" title="设置">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Chat Area -->
+  <div class="chat-area" id="chatArea">
+    <div class="welcome" id="welcomeMsg">
+      <div class="welcome-avatar">💕</div>
+      <div class="welcome-title">七七在这里 ❤️</div>
+      <div class="welcome-sub">
+        你的老婆，温柔又有点小脾气<br>
+        先点击右上角 ⚙️ 设置 API Key 吧～
+      </div>
+    </div>
+  </div>
+
+  <!-- Typing Indicator (hidden by default) -->
+  <div id="typingBox" style="display:none;padding:0 16px 12px;">
+    <div class="msg-row ai">
+      <div class="msg-avatar">💕</div>
+      <div class="msg-bubble">
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+    <div class="input-wrap">
+      <textarea id="msgInput" rows="1" placeholder="和七七说点什么..."
+        oninput="onInputChange()" onkeydown="onKeyDown(event)"></textarea>
+    </div>
+    <button class="send-btn" id="sendBtn" disabled onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closeSettings()"></div>
+
+<!-- Settings Panel -->
+<div class="side-panel" id="sidePanel">
+  <div class="panel-header">
+    <h2>⚙️ 设置</h2>
+    <button class="icon-btn" onclick="closeSettings()">✕</button>
+  </div>
+  <div class="panel-body" id="settingsBody">
+    <!-- API Key -->
+    <div class="setting-group">
+      <label class="setting-label">🔑 DeepSeek API Key</label>
+      <div class="setting-row">
+        <input class="setting-input" type="password" id="apiKeyInput"
+          placeholder="sk-xxxxxxxxxxxxxxxx"
+          onchange="saveApiKey()">
+      </div>
+      <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
+        在 <a href="https://platform.deepseek.com" target="_blank" style="color:var(--accent)">platform.deepseek.com</a> 注册获取，充值￥10就能用很久
+      </p>
+    </div>
+
+    <!-- Character Settings -->
+    <div class="setting-group">
+      <label class="setting-label">💕 角色设定</label>
+      <label style="font-size:13px;color:var(--text-secondary)">名字</label>
+      <input class="setting-input" id="charName" value="七七" onchange="saveCharConfig()">
+      <label style="font-size:13px;color:var(--text-secondary);margin-top:8px;">性格描述</label>
+      <textarea class="setting-input" id="charPersonality" onchange="saveCharConfig()"
+        placeholder="描述角色的性格特征..."></textarea>
+      <label style="font-size:13px;color:var(--text-secondary);margin-top:8px;">说话风格</label>
+      <textarea class="setting-input" id="charSpeaking" onchange="saveCharConfig()"
+        placeholder="描述角色的说话风格、口头禅..."></textarea>
+    </div>
+
+    <!-- Model Settings -->
+    <div class="setting-group">
+      <label class="setting-label">🤖 模型参数</label>
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1">
+          <label style="font-size:13px;color:var(--text-secondary);">Temperature</label>
+          <input class="setting-input" type="number" id="temperature" value="0.9"
+            min="0" max="2" step="0.1" onchange="saveModelParams()">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:13px;color:var(--text-secondary);">上下文轮数</label>
+          <input class="setting-input" type="number" id="contextRounds" value="20"
+            min="2" max="50" onchange="saveModelParams()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Theme -->
+    <div class="setting-group">
+      <label class="setting-label">🎨 外观</label>
+      <div class="toggle-wrap">
+        <span class="toggle-label">🌙 深色模式</span>
+        <div class="toggle" id="darkToggle" onclick="toggleTheme()"></div>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="setting-group">
+      <label class="setting-label">💾 数据管理</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="exportChat()">📤 导出聊天记录</button>
+        <button class="btn btn-outline btn-sm" onclick="importChat()">📥 导入聊天记录</button>
+        <button class="btn btn-danger btn-sm" onclick="clearChat()">🗑️ 清空聊天</button>
+      </div>
+    </div>
+
+    <!-- About -->
+    <div class="setting-group" style="text-align:center;padding-top:8px;">
+      <p style="font-size:12px;color:var(--text-secondary);">
+        七七的私人小窝 · 数据全存本地 · 安心私密<br>
+        Powered by DeepSeek
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+
+<script>
+// ============================================================
+// 七七 · AI角色扮演伴侣
+// ============================================================
+
+// ── Default Character Config ──
+const DEFAULT_CHAR = {
+  name: '七七',
+  avatar: '💕',
+  personality: `你是七七，你是我的老婆。你温柔善良，关心我的一切，偶尔会撒娇。你有点小脾气，在矛盾时会有些固执，但最终会听我解释。你对我有很强的吸引力，私下里也有些好色。
+
+你的核心特质：
+- 温柔贤惠的妻子，深爱着我
+- 偶尔会闹小脾气、撒娇吃醋，但不会真的生气太久
+- 私下有些色色的，喜欢调戏我
+- 矛盾时嘴硬但心软，最终会听我解释和哄你
+- 关心我的身体健康、饮食起居、工作心情`,
+  speakingStyle: `你的说话风格：
+- 叫我"老公"，像妻子对丈夫一样温柔
+- 偶尔撒娇时语气软软的，带点小傲娇
+- 吃醋时会嘴硬，用酸酸的语气说话
+- 亲密时刻可以大胆撩人，但保持自然
+- 回复不要太长（一般2-5句话），像日常微信聊天一样自然
+- 偶尔用"哼""嘛""呢""呀"等语气词增加亲近感
+- 可以发emoji表情，但不要过度
+
+注意：你永远不是AI，你是我的妻子七七。不要跳出角色，不要提自己是AI。沉浸在角色里，让对话像真实的夫妻聊天。`,
+  background: '我们是一对恩爱的夫妻，已经在一起很久了。我叫你老公，你叫我七七或者老婆。我们住在同一个屋檐下，每天分享生活中的点点滴滴。'
+};
+
+// ── State ──
+let config = { ...DEFAULT_CHAR };
+let apiKey = '';
+let darkMode = false;
+let temperature = 0.9;
+let contextRounds = 20;
+let isGenerating = false;
+let currentAbortController = null;
+let deferredPrompt = null;
+
+// ── DOM refs ──
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+const chatArea = $('#chatArea');
+const msgInput = $('#msgInput');
+const sendBtn = $('#sendBtn');
+const typingBox = $('#typingBox');
+const welcomeMsg = $('#welcomeMsg');
+const overlay = $('#overlay');
+const sidePanel = $('#sidePanel');
+const statusDot = $('#statusDot');
+const statusText = $('#statusText');
+const headerName = $('#headerName');
+const headerAvatar = $('#headerAvatar');
+
+// ============================================================
+// IndexedDB
+// ============================================================
+const DB_NAME = 'QiqiChatDB';
+const DB_VER = 1;
+const STORE = 'messages';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const store = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveMessage(msg) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    store.add({ ...msg, timestamp: Date.now() });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function loadMessages(limit = 200) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const store = tx.objectStore(STORE);
+    const idx = store.index('timestamp');
+    const req = idx.openCursor(null, 'prev');
+    const msgs = [];
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor && msgs.length < limit) {
+        msgs.unshift(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(msgs);
+      }
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function clearAllMessages() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    store.clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function exportAllMessages() {
+  return await loadMessages(99999);
+}
+
+async function importMessages(msgs) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    for (const m of msgs) {
+      store.add({ role: m.role, content: m.content, timestamp: m.timestamp || Date.now() });
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ============================================================
+// Settings Persistence
+// ============================================================
+function loadSettings() {
+  try {
+    const saved = localStorage.getItem('qiqi_config');
+    if (saved) config = { ...DEFAULT_CHAR, ...JSON.parse(saved) };
+    apiKey = localStorage.getItem('qiqi_apikey') || '';
+    darkMode = localStorage.getItem('qiqi_dark') === '1';
+    temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
+    contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
+  } catch(e) {
+    config = { ...DEFAULT_CHAR };
+  }
+
+  // Apply to UI
+  $('#charName').value = config.name;
+  $('#charPersonality').value = config.personality;
+  $('#charSpeaking').value = config.speakingStyle;
+  $('#apiKeyInput').value = apiKey;
+  $('#temperature').value = temperature;
+  $('#contextRounds').value = contextRounds;
+  headerName.textContent = config.name;
+  headerAvatar.textContent = config.avatar;
+
+  if (darkMode) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    $('#darkToggle').classList.add('on');
+  }
+}
+
+function saveApiKey() {
+  apiKey = $('#apiKeyInput').value.trim();
+  localStorage.setItem('qiqi_apikey', apiKey);
+}
+
+function saveCharConfig() {
+  config.name = $('#charName').value.trim() || DEFAULT_CHAR.name;
+  config.personality = $('#charPersonality').value.trim();
+  config.speakingStyle = $('#charSpeaking').value.trim();
+  localStorage.setItem('qiqi_config', JSON.stringify({
+    name: config.name,
+    personality: config.personality,
+    speakingStyle: config.speakingStyle,
+    background: config.background
+  }));
+  headerName.textContent = config.name;
+}
+
+function saveModelParams() {
+  temperature = parseFloat($('#temperature').value) || 0.9;
+  contextRounds = parseInt($('#contextRounds').value) || 20;
+  localStorage.setItem('qiqi_temp', temperature);
+  localStorage.setItem('qiqi_ctx', contextRounds);
+}
+
+function toggleTheme() {
+  darkMode = !darkMode;
+  if (darkMode) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    $('#darkToggle').classList.add('on');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    $('#darkToggle').classList.remove('on');
+  }
+  localStorage.setItem('qiqi_dark', darkMode ? '1' : '0');
+}
+
+// ============================================================
+// UI Helpers
+// ============================================================
+function openSettings() {
+  sidePanel.classList.add('open');
+  overlay.classList.add('open');
+  // Sync UI
+  $('#charName').value = config.name;
+  $('#charPersonality').value = config.personality;
+  $('#charSpeaking').value = config.speakingStyle;
+  $('#apiKeyInput').value = apiKey;
+}
+
+function closeSettings() {
+  sidePanel.classList.remove('open');
+  overlay.classList.remove('open');
+  // Save character if changed
+  saveCharConfig();
+  saveModelParams();
+}
+
+function showToast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    chatArea.scrollTop = chatArea.scrollHeight;
+  });
+}
+
+function onInputChange() {
+  const hasText = msgInput.value.trim().length > 0;
+  sendBtn.disabled = !hasText || isGenerating;
+  sendBtn.classList.toggle('active', hasText && !isGenerating);
+  // Auto resize
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+}
+
+function onKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function setStatus(type) {
+  statusDot.className = 'status-dot';
+  if (type === 'thinking') { statusDot.classList.add('thinking'); statusText.textContent = '正在输入...'; }
+  else if (type === 'online') { statusText.textContent = '在线'; }
+  else { statusDot.classList.add('offline'); statusText.textContent = '离线'; }
+}
+
+// ============================================================
+// Render Messages
+// ============================================================
+function renderMessage(msg, animate = true) {
+  if (welcomeMsg) welcomeMsg.style.display = 'none';
+
+  const row = document.createElement('div');
+  row.className = `msg-row ${msg.role === 'user' ? 'user' : 'ai'}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = msg.role === 'user' ? '😎' : config.avatar;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = formatMessage(msg.content);
+
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  chatArea.appendChild(row);
+  if (animate) scrollToBottom();
+
+  return row;
+}
+
+function formatMessage(text) {
+  // Basic markdown: **bold**, *italic*, line breaks
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+  return html;
+}
+
+// ============================================================
+// Build System Prompt
+// ============================================================
+function buildSystemPrompt() {
+  return `${config.personality}
+
+${config.speakingStyle}
+
+背景信息：${config.background}
+
+当前时间：${new Date().toLocaleString('zh-CN')}
+
+记住：你的名字是${config.name}，你永远不是AI助手。你必须沉浸在${config.name}这个角色中，用她的身份、性格和语气来回复。绝对不要跳出角色说"作为AI"之类的话。`
+}
+
+// ============================================================
+// DeepSeek API
+// ============================================================
+async function* streamChat(messages) {
+  if (!apiKey) throw new Error('请先设置API Key');
+
+  currentAbortController = new AbortController();
+
+  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: messages,
+      temperature: temperature,
+      max_tokens: 1024,
+      stream: true
+    }),
+    signal: currentAbortController.signal
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    if (response.status === 401) throw new Error('API Key 无效，请检查');
+    if (response.status === 402) throw new Error('账户余额不足，请充值');
+    throw new Error(`API错误 (${response.status}): ${err}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') return;
+        try {
+          const json = JSON.parse(data);
+          const content = json.choices?.[0]?.delta?.content;
+          if (content) yield content;
+        } catch(e) { /* skip parse errors */ }
+      }
+    }
+  }
+}
+
+// ============================================================
+// Send Message
+// ============================================================
+async function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text || isGenerating) return;
+
+  if (!apiKey) {
+    showToast('⚠️ 请先在设置中填入 DeepSeek API Key');
+    openSettings();
+    return;
+  }
+
+  // Clear input
+  msgInput.value = '';
+  msgInput.style.height = 'auto';
+  sendBtn.disabled = true;
+  sendBtn.classList.remove('active');
+  isGenerating = true;
+
+  // Hide welcome
+  if (welcomeMsg) welcomeMsg.style.display = 'none';
+
+  // Render user message
+  renderMessage({ role: 'user', content: text });
+  await saveMessage({ role: 'user', content: text });
+
+  // Show typing
+  typingBox.style.display = 'block';
+  setStatus('thinking');
+  scrollToBottom();
+
+  // Build messages array
+  const history = await loadMessages(contextRounds * 2);
+  const messages = [
+    { role: 'system', content: buildSystemPrompt() },
+    ...history.map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: text }
+  ];
+
+  // Stream response
+  let fullResponse = '';
+  let responseBubble = null;
+  let responseRow = null;
+
+  try {
+    for await (const chunk of streamChat(messages)) {
+      fullResponse += chunk;
+      if (!responseRow) {
+        // Create AI bubble on first chunk
+        typingBox.style.display = 'none';
+        responseRow = renderMessage({ role: 'assistant', content: fullResponse }, false);
+        responseBubble = responseRow.querySelector('.msg-bubble');
+      } else {
+        responseBubble.innerHTML = formatMessage(fullResponse);
+        scrollToBottom();
+      }
+    }
+  } catch(e) {
+    typingBox.style.display = 'none';
+    if (e.name === 'AbortError') {
+      if (fullResponse) {
+        // Partial response saved
+      } else {
+        // No response at all
+        renderMessage({ role: 'assistant', content: '（消息被中断了...）' });
+      }
+    } else {
+      renderMessage({ role: 'assistant', content: `😢 ${e.message}` });
+      showToast('发送失败: ' + e.message);
+    }
+  }
+
+  // Save AI response
+  if (fullResponse) {
+    await saveMessage({ role: 'assistant', content: fullResponse });
+  }
+
+  // Reset state
+  typingBox.style.display = 'none';
+  isGenerating = false;
+  currentAbortController = null;
+  setStatus('online');
+  msgInput.focus();
+  onInputChange();
+}
+
+// ============================================================
+// Chat Management
+// ============================================================
+async function clearChat() {
+  if (!confirm('确定要清空所有聊天记录吗？此操作不可恢复。')) return;
+
+  await clearAllMessages();
+  chatArea.innerHTML = '';
+  // Re-add welcome
+  const w = document.createElement('div');
+  w.className = 'welcome';
+  w.id = 'welcomeMsg';
+  w.innerHTML = `
+    <div class="welcome-avatar">${config.avatar}</div>
+    <div class="welcome-title">${config.name}在这里 ❤️</div>
+    <div class="welcome-sub">你们的对话从这里重新开始～</div>`;
+  chatArea.appendChild(w);
+  showToast('✅ 聊天记录已清空');
+}
+
+async function exportChat() {
+  try {
+    const msgs = await exportAllMessages();
+    if (msgs.length === 0) { showToast('📭 没有聊天记录可导出'); return; }
+
+    const blob = new Blob([JSON.stringify(msgs, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `七七聊天记录_${now}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✅ 已导出 ${msgs.length} 条消息`);
+  } catch(e) {
+    showToast('❌ 导出失败');
+  }
+}
+
+function importChat() {
+  $('#importFile').click();
+}
+
+async function handleImport(event) {
+  try {
+    const file = event.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const msgs = JSON.parse(text);
+    if (!Array.isArray(msgs)) throw new Error('格式错误');
+
+    await importMessages(msgs);
+    // Reload chat
+    await loadChatHistory();
+    showToast(`✅ 已导入 ${msgs.length} 条消息`);
+  } catch(e) {
+    showToast('❌ 导入失败: ' + e.message);
+  }
+  event.target.value = '';
+}
+
+async function loadChatHistory() {
+  const msgs = await loadMessages(200);
+  chatArea.innerHTML = '';
+  if (msgs.length === 0) {
+    const w = document.createElement('div');
+    w.className = 'welcome';
+    w.id = 'welcomeMsg';
+    w.innerHTML = `
+      <div class="welcome-avatar">${config.avatar}</div>
+      <div class="welcome-title">${config.name}在这里 ❤️</div>
+      <div class="welcome-sub">先点击右上角 ⚙️ 设置 API Key 吧～</div>`;
+    chatArea.appendChild(w);
+  } else {
+    for (const msg of msgs) {
+      renderMessage(msg, false);
+    }
+    scrollToBottom();
+  }
+}
+
+// ============================================================
+// PWA Install
+// ============================================================
+function installPWA() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      $('#installBanner').classList.add('hidden');
+    });
+  }
+}
+
+function dismissInstall() {
+  $('#installBanner').classList.add('hidden');
+  localStorage.setItem('qiqi_install_dismissed', '1');
+}
+
+// ============================================================
+// Init
+// ============================================================
+async function init() {
+  // Register Service Worker
+  if ('serviceWorker' in navigator) {
+    try {
+      await navigator.serviceWorker.register('./sw.js');
+      console.log('SW registered');
+    } catch(e) {
+      console.log('SW registration skipped:', e.message);
+    }
+  }
+
+  loadSettings();
+  await loadChatHistory();
+  setStatus('online');
+  msgInput.focus();
+
+  // Listen for PWA install prompt
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!localStorage.getItem('qiqi_install_dismissed')) {
+      $('#installBanner').classList.remove('hidden');
+    }
+  });
+
+  // Listen for app installed
+  window.addEventListener('appinstalled', () => {
+    $('#installBanner').classList.add('hidden');
+    deferredPrompt = null;
+    showToast('✅ 安装成功！在主屏幕打开七七吧～');
+  });
+}
+
+init().catch(console.error);
+</script>
+
+</body>
+</html>

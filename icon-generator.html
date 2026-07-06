@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Icon Generator</title></head>
+<body style="text-align:center;padding-top:50px;font-family:sans-serif;">
+  <h2>七七图标生成器</h2>
+  <p>点击按钮下载图标文件到项目目录</p>
+  <canvas id="c" width="512" height="512" style="display:none"></canvas>
+  <div id="links"></div>
+  <script>
+    const sizes = [192, 512];
+    const ctx = document.getElementById('c').getContext('2d');
+    sizes.forEach(size => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx2 = canvas.getContext('2d');
+      // Gradient background
+      const grad = ctx2.createLinearGradient(0, 0, size, size);
+      grad.addColorStop(0, '#ff6b9d');
+      grad.addColorStop(1, '#ff4081');
+      // Rounded rect
+      const r = size * 0.21;
+      ctx2.beginPath();
+      ctx2.moveTo(r, 0);
+      ctx2.lineTo(size - r, 0);
+      ctx2.quadraticCurveTo(size, 0, size, r);
+      ctx2.lineTo(size, size - r);
+      ctx2.quadraticCurveTo(size, size, size - r, size);
+      ctx2.lineTo(r, size);
+      ctx2.quadraticCurveTo(0, size, 0, size - r);
+      ctx2.lineTo(0, r);
+      ctx2.quadraticCurveTo(0, 0, r, 0);
+      ctx2.closePath();
+      ctx2.fillStyle = grad;
+      ctx2.fill();
+      // Emoji
+      ctx2.fillStyle = '#fff';
+      ctx2.font = `${size * 0.52}px serif`;
+      ctx2.textAlign = 'center';
+      ctx2.textBaseline = 'middle';
+      ctx2.fillText('💕', size/2, size/2 + size*0.02);
+      // Download
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `icon-${size}.png`;
+        a.textContent = `下载 icon-${size}.png`;
+        a.style.cssText = 'display:block;margin:10px;font-size:18px;color:#ff4081';
+        document.getElementById('links').appendChild(a);
+      });
+    });
+  </script>
+</body></html>
