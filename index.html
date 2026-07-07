@@ -286,6 +286,48 @@ body {
   30% { transform: translateY(-6px); }
 }
 
+/* ========== Context Menu ========== */
+.ctx-menu {
+  position: fixed;
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  z-index: 300;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
+  transition: all 0.15s ease;
+  min-width: 120px;
+}
+.ctx-menu.open {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+.ctx-menu-item {
+  padding: 12px 20px;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+  color: var(--text);
+}
+.ctx-menu-item:last-child { border-bottom: none; }
+.ctx-menu-item:active { background: var(--surface2); }
+.ctx-menu-item.danger { color: var(--danger); }
+
+.ctx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 299;
+  display: none;
+}
+.ctx-overlay.show { display: block; }
+
 /* ========== Input Area ========== */
 .input-area {
   padding: 10px 12px;
@@ -679,6 +721,13 @@ textarea.setting-input {
   </div>
 </div>
 
+<!-- Context Menu -->
+<div class="ctx-overlay" id="ctxOverlay" onclick="closeCtxMenu()"></div>
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-menu-item" onclick="editMessage()">✏️ 编辑</div>
+  <div class="ctx-menu-item danger" onclick="deleteMessage()">🗑️ 删除</div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -724,6 +773,7 @@ let contextRounds = 20;
 let isGenerating = false;
 let currentAbortController = null;
 let deferredPrompt = null;
+let ctxTarget = null;  // message row being context-menu'd
 
 // ── DOM refs ──
 const $ = (s) => document.querySelector(s);
@@ -768,8 +818,8 @@ async function saveMessage(msg) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
-    store.add({ ...msg, timestamp: Date.now() });
-    tx.oncomplete = () => resolve();
+    const req = store.add({ ...msg, timestamp: Date.now() });
+    req.onsuccess = () => resolve(req.result);  // return the auto-generated id
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -792,6 +842,17 @@ async function loadMessages(limit = 200) {
       }
     };
     req.onerror = () => reject(req.error);
+  });
+}
+
+async function deleteMessageById(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    store.delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -957,6 +1018,7 @@ function renderMessage(msg, animate = true) {
 
   const row = document.createElement('div');
   row.className = `msg-row ${msg.role === 'user' ? 'user' : 'ai'}`;
+  if (msg.id != null) row.dataset.msgId = msg.id;
 
   const avatar = document.createElement('div');
   avatar.className = 'msg-avatar';
@@ -965,6 +1027,25 @@ function renderMessage(msg, animate = true) {
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   bubble.innerHTML = formatMessage(msg.content);
+
+  // Long-press for user messages
+  if (msg.role === 'user') {
+    let pressTimer;
+    const clearPress = () => { clearTimeout(pressTimer); };
+
+    bubble.addEventListener('touchstart', (e) => {
+      pressTimer = setTimeout(() => {
+        clearPress();
+        openCtxMenu(row, e);
+      }, 500);
+    }, { passive: true });
+    bubble.addEventListener('touchend', clearPress);
+    bubble.addEventListener('touchmove', clearPress);
+    bubble.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      openCtxMenu(row, e);
+    });
+  }
 
   row.appendChild(avatar);
   row.appendChild(bubble);
@@ -1081,9 +1162,9 @@ async function sendMessage() {
   // Hide welcome
   if (welcomeMsg) welcomeMsg.style.display = 'none';
 
-  // Render user message
-  renderMessage({ role: 'user', content: text });
-  await saveMessage({ role: 'user', content: text });
+  // Save and render user message
+  const userMsgId = await saveMessage({ role: 'user', content: text });
+  renderMessage({ role: 'user', content: text, id: userMsgId });
 
   // Show typing
   typingBox.style.display = 'block';
@@ -1130,9 +1211,10 @@ async function sendMessage() {
     }
   }
 
-  // Save AI response
+  // Save AI response (and attach id to DOM)
   if (fullResponse) {
-    await saveMessage({ role: 'assistant', content: fullResponse });
+    const aiMsgId = await saveMessage({ role: 'assistant', content: fullResponse });
+    if (responseRow) responseRow.dataset.msgId = aiMsgId;
   }
 
   // Reset state
@@ -1229,6 +1311,77 @@ async function loadChatHistory() {
     }
     scrollToBottom();
   }
+}
+
+// ============================================================
+// Context Menu (long-press on messages)
+// ============================================================
+function openCtxMenu(row, event) {
+  ctxTarget = row;
+  const menu = $('#ctxMenu');
+  const overlay = $('#ctxOverlay');
+
+  // Position near the touch point
+  const x = event.touches ? event.touches[0].clientX : event.clientX;
+  const y = event.touches ? event.touches[0].clientY : event.clientY;
+
+  // Keep menu within viewport
+  const menuW = 140; const menuH = 100;
+  let left = Math.min(x, window.innerWidth - menuW - 10);
+  let top = y - menuH; // Show above touch point
+  if (top < 60) top = y + 10; // Fallback: show below
+
+  menu.style.left = Math.max(10, left) + 'px';
+  menu.style.top = Math.max(10, top) + 'px';
+  menu.classList.add('open');
+  overlay.classList.add('show');
+}
+
+function closeCtxMenu() {
+  $('#ctxMenu').classList.remove('open');
+  $('#ctxOverlay').classList.remove('show');
+  ctxTarget = null;
+}
+
+function editMessage() {
+  if (!ctxTarget) return;
+  const bubble = ctxTarget.querySelector('.msg-bubble');
+  if (bubble) {
+    // Get plain text from bubble (strip html)
+    const text = bubble.innerText.trim();
+    msgInput.value = text;
+    msgInput.focus();
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+    onInputChange();
+    showToast('✏️ 已填入输入框，修改后发送即可');
+  }
+  closeCtxMenu();
+}
+
+async function deleteMessage() {
+  if (!ctxTarget) return;
+  const msgId = parseInt(ctxTarget.dataset.msgId);
+  if (!isNaN(msgId)) {
+    await deleteMessageById(msgId);
+  }
+  ctxTarget.style.opacity = '0';
+  ctxTarget.style.transform = 'scale(0.8)';
+  ctxTarget.style.transition = 'all 0.2s ease';
+  setTimeout(() => {
+    ctxTarget.remove();
+    // If no more messages, show welcome
+    if (chatArea.querySelectorAll('.msg-row').length === 0) {
+      chatArea.innerHTML = '';
+      const w = document.createElement('div');
+      w.className = 'welcome';
+      w.id = 'welcomeMsg';
+      w.innerHTML = '<div class="welcome-avatar">' + config.avatar + '</div><div class="welcome-title">' + config.name + '在这里 ❤️</div><div class="welcome-sub">你们的对话从这里重新开始～</div>';
+      chatArea.appendChild(w);
+    }
+  }, 200);
+  showToast('🗑️ 已删除');
+  closeCtxMenu();
 }
 
 // ============================================================
