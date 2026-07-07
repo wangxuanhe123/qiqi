@@ -272,10 +272,9 @@ body {
   color: #fff;
   font-size: 12px;
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.65;
   transition: opacity 0.2s;
 }
-.msg-row.ai:hover .speak-btn,
 .msg-row.ai .speak-btn.speaking { opacity: 1; }
 .speak-btn.speaking {
   background: var(--accent);
@@ -754,7 +753,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v4</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v5</span>
       </p>
     </div>
   </div>
@@ -1406,30 +1405,46 @@ let currentSpeakBtn = null;
 let autoRead = localStorage.getItem('qiqi_autoread') === '1';
 
 function toggleSpeak(btn, text, row) {
-  // If already speaking, stop
-  if (currentUtterance && speechSynthesis.speaking) {
+  // If already speaking this button, stop
+  if (currentSpeakBtn === btn && speechSynthesis.speaking) {
     speechSynthesis.cancel();
-    if (currentSpeakBtn) {
-      currentSpeakBtn.innerHTML = '🔊 朗读';
-      currentSpeakBtn.classList.remove('speaking');
-    }
-    if (currentUtterance === btn) return; // toggle off
+    btn.innerHTML = '🔊 朗读';
+    btn.classList.remove('speaking');
+    currentSpeakBtn = null;
+    currentUtterance = null;
+    return;
   }
 
-  // Start speaking
-  speechSynthesis.cancel(); // cancel any previous
-  const utterance = new SpeechSynthesisUtterance(text.replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<br>/g,'\n'));
+  // Stop any current speech
+  speechSynthesis.cancel();
+  if (currentSpeakBtn) {
+    currentSpeakBtn.innerHTML = '🔊 朗读';
+    currentSpeakBtn.classList.remove('speaking');
+  }
+
+  // Clean text: strip the button's own text (🔊 朗读 / ⏹ 停止), HTML, etc.
+  let cleanText = text
+    .replace(/🔊\s*朗读|⏹\s*停止/g, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .trim();
+  if (!cleanText) return;
+
+  const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = 'zh-CN';
   utterance.rate = 1.05;
   utterance.pitch = 1.0;
+  utterance.volume = 1.0;
 
-  // Try to find a natural Chinese female voice
+  // Try to find a Chinese voice
   const voices = speechSynthesis.getVoices();
-  const zhVoice = voices.find(v => v.lang.startsWith('zh') && v.name.includes('Female')) ||
+  const zhVoice = voices.find(v => v.lang.startsWith('zh') && (v.name.includes('Female') || v.name.includes('女') || v.name.includes('Xiaoxiao') || v.name.includes('晓晓'))) ||
                   voices.find(v => v.lang.startsWith('zh-CN')) ||
                   voices.find(v => v.lang.startsWith('zh'));
   if (zhVoice) utterance.voice = zhVoice;
-  utterance.volume = 1.0;
 
   utterance.onstart = () => {
     btn.innerHTML = '⏹ 停止';
@@ -1443,11 +1458,15 @@ function toggleSpeak(btn, text, row) {
     currentSpeakBtn = null;
     currentUtterance = null;
   };
-  utterance.onerror = () => {
+  utterance.onerror = (e) => {
+    console.log('TTS error:', e.error);
     btn.innerHTML = '🔊 朗读';
     btn.classList.remove('speaking');
     currentSpeakBtn = null;
     currentUtterance = null;
+    if (e.error !== 'canceled' && e.error !== 'interrupted') {
+      showToast('⚠️ 朗读失败，请检查手机TTS设置');
+    }
   };
 
   speechSynthesis.speak(utterance);
@@ -1455,7 +1474,6 @@ function toggleSpeak(btn, text, row) {
 
 function speakLatestAI() {
   if (!autoRead) return;
-  // Small delay to let DOM settle
   setTimeout(() => {
     const aiRows = chatArea.querySelectorAll('.msg-row.ai, .msg-row.assistant');
     if (aiRows.length > 0) {
@@ -1463,10 +1481,12 @@ function speakLatestAI() {
       const bubble = lastRow.querySelector('.msg-bubble');
       const btn = lastRow.querySelector('.speak-btn');
       if (bubble && btn) {
-        toggleSpeak(btn, bubble.innerText, lastRow);
+        // Get clean text (exclude button text)
+        const cleanText = bubble.innerText.replace(/🔊\s*朗读|⏹\s*停止/g, '').trim();
+        if (cleanText) toggleSpeak(btn, cleanText, lastRow);
       }
     }
-  }, 300);
+  }, 500);
 }
 
 // Load voices early
