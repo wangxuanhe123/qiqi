@@ -715,7 +715,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v3</span>
       </p>
     </div>
   </div>
@@ -1162,12 +1162,26 @@ async function sendMessage() {
   // Hide welcome
   if (welcomeMsg) welcomeMsg.style.display = 'none';
 
-  // Build messages array BEFORE saving (avoids any duplication)
-  const history = await loadMessages(contextRounds * 2);
+  // Build messages array BEFORE saving
+  const rawHistory = await loadMessages(contextRounds * 2);
+  // Deduplicate: remove consecutive messages with same role+content
+  const deduped = [];
+  for (const m of rawHistory) {
+    const prev = deduped[deduped.length - 1];
+    if (!prev || prev.role !== m.role || prev.content !== m.content) {
+      deduped.push({ role: m.role, content: m.content });
+    }
+  }
+  // Also ensure the current message isn't already the last one in history
+  const lastMsg = deduped[deduped.length - 1];
+  if (lastMsg && lastMsg.role === 'user' && lastMsg.content === text) {
+    // Current message is already in history, don't add it again
+  } else {
+    deduped.push({ role: 'user', content: text });
+  }
   const messages = [
     { role: 'system', content: buildSystemPrompt() },
-    ...history.map(m => ({ role: m.role, content: m.content })),
-    { role: 'user', content: text }
+    ...deduped
   ];
 
   // Save and render user message
