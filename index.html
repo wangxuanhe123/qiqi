@@ -1162,6 +1162,14 @@ async function sendMessage() {
   // Hide welcome
   if (welcomeMsg) welcomeMsg.style.display = 'none';
 
+  // Build messages array BEFORE saving (avoids any duplication)
+  const history = await loadMessages(contextRounds * 2);
+  const messages = [
+    { role: 'system', content: buildSystemPrompt() },
+    ...history.map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: text }
+  ];
+
   // Save and render user message
   const userMsgId = await saveMessage({ role: 'user', content: text });
   renderMessage({ role: 'user', content: text, id: userMsgId });
@@ -1170,13 +1178,6 @@ async function sendMessage() {
   typingBox.style.display = 'block';
   setStatus('thinking');
   scrollToBottom();
-
-  // Build messages array (history already contains the latest user message)
-  const history = await loadMessages(contextRounds * 2);
-  const messages = [
-    { role: 'system', content: buildSystemPrompt() },
-    ...history.map(m => ({ role: m.role, content: m.content }))
-  ];
 
   // Stream response
   let fullResponse = '';
