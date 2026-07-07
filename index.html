@@ -1090,12 +1090,11 @@ async function sendMessage() {
   setStatus('thinking');
   scrollToBottom();
 
-  // Build messages array
+  // Build messages array (history already contains the latest user message)
   const history = await loadMessages(contextRounds * 2);
   const messages = [
     { role: 'system', content: buildSystemPrompt() },
-    ...history.map(m => ({ role: m.role, content: m.content })),
-    { role: 'user', content: text }
+    ...history.map(m => ({ role: m.role, content: m.content }))
   ];
 
   // Stream response
