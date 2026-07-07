@@ -259,32 +259,6 @@ body {
   border-bottom-right-radius: 4px;
 }
 
-/* Speak button on AI messages */
-.speak-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: none;
-  background: var(--accent-light);
-  color: #fff;
-  font-size: 12px;
-  cursor: pointer;
-  opacity: 0.65;
-  transition: opacity 0.2s;
-}
-.msg-row.ai .speak-btn.speaking { opacity: 1; }
-.speak-btn.speaking {
-  background: var(--accent);
-  animation: speakPulse 1s infinite;
-}
-@keyframes speakPulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(255,64,129,0.5); }
-  50% { box-shadow: 0 0 0 8px rgba(255,64,129,0); }
-}
-
 .msg-time {
   font-size: 11px;
   color: var(--text-secondary);
@@ -720,18 +694,6 @@ textarea.setting-input {
 
     <!-- Theme -->
     <div class="setting-group">
-      <label class="setting-label">🔊 语音朗读</label>
-      <div class="toggle-wrap">
-        <span class="toggle-label">🤖 自动朗读七七的回复</span>
-        <div class="toggle" id="autoReadToggle" onclick="toggleAutoRead()"></div>
-      </div>
-      <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-        开启后七七说完话会自动朗读；也可点击每条消息下的 🔊 按钮手动听
-      </p>
-    </div>
-
-    <!-- Theme -->
-    <div class="setting-group">
       <label class="setting-label">🎨 外观</label>
       <div class="toggle-wrap">
         <span class="toggle-label">🌙 深色模式</span>
@@ -753,7 +715,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v5</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v7</span>
       </p>
     </div>
   </div>
@@ -821,7 +783,7 @@ const chatArea = $('#chatArea');
 const msgInput = $('#msgInput');
 const sendBtn = $('#sendBtn');
 const typingBox = $('#typingBox');
-const welcomeMsg = $('#welcomeMsg');
+let welcomeMsg = $('#welcomeMsg');
 const overlay = $('#overlay');
 const sidePanel = $('#sidePanel');
 const statusDot = $('#statusDot');
@@ -931,7 +893,6 @@ function loadSettings() {
     if (saved) config = { ...DEFAULT_CHAR, ...JSON.parse(saved) };
     apiKey = localStorage.getItem('qiqi_apikey') || '';
     darkMode = localStorage.getItem('qiqi_dark') === '1';
-    autoRead = localStorage.getItem('qiqi_autoread') === '1';
     temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
     contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
   } catch(e) {
@@ -951,9 +912,6 @@ function loadSettings() {
   if (darkMode) {
     document.documentElement.setAttribute('data-theme', 'dark');
     $('#darkToggle').classList.add('on');
-  }
-  if (autoRead) {
-    $('#autoReadToggle').classList.add('on');
   }
 }
 
@@ -992,19 +950,6 @@ function toggleTheme() {
     $('#darkToggle').classList.remove('on');
   }
   localStorage.setItem('qiqi_dark', darkMode ? '1' : '0');
-}
-
-function toggleAutoRead() {
-  autoRead = !autoRead;
-  localStorage.setItem('qiqi_autoread', autoRead ? '1' : '0');
-  if (autoRead) {
-    $('#autoReadToggle').classList.add('on');
-    showToast('🔊 已开启自动朗读');
-  } else {
-    $('#autoReadToggle').classList.remove('on');
-    speechSynthesis.cancel();
-    showToast('🔇 已关闭自动朗读');
-  }
 }
 
 // ============================================================
@@ -1083,18 +1028,6 @@ function renderMessage(msg, animate = true) {
   bubble.className = 'msg-bubble';
   bubble.innerHTML = formatMessage(msg.content);
 
-  // Speak button for AI messages
-  if (msg.role === 'assistant' || msg.role === 'ai') {
-    const speakBtn = document.createElement('button');
-    speakBtn.className = 'speak-btn';
-    speakBtn.innerHTML = '🔊 朗读';
-    speakBtn.onclick = (e) => {
-      e.stopPropagation();
-      toggleSpeak(speakBtn, bubble.innerText, row);
-    };
-    bubble.appendChild(speakBtn);
-  }
-
   // Long-press for user messages
   if (msg.role === 'user') {
     let pressTimer;
@@ -1123,13 +1056,12 @@ function renderMessage(msg, animate = true) {
 }
 
 function formatMessage(text) {
-  // Basic markdown: **bold**, *italic*, line breaks
+  // Escape HTML first, then convert **bold** and line breaks
   let html = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br>');
   return html;
 }
@@ -1203,6 +1135,16 @@ async function* streamChat(messages) {
         } catch(e) { /* skip parse errors */ }
       }
     }
+  }
+
+  // Process any remaining data in buffer after stream ends
+  if (buffer.trim() && buffer.startsWith('data: ') && buffer.trim() !== 'data: [DONE]') {
+    try {
+      const data = buffer.trim().slice(6).trim();
+      const json = JSON.parse(data);
+      const content = json.choices?.[0]?.delta?.content;
+      if (content) yield content;
+    } catch(e) { /* skip */ }
   }
 }
 
@@ -1297,8 +1239,6 @@ async function sendMessage() {
   if (fullResponse) {
     const aiMsgId = await saveMessage({ role: 'assistant', content: fullResponse });
     if (responseRow) responseRow.dataset.msgId = aiMsgId;
-    // Auto-read if enabled
-    if (autoRead) speakLatestAI();
   }
 
   // Reset state
@@ -1330,6 +1270,7 @@ async function clearChat() {
       📲 安装到主屏幕
     </button>`;
   chatArea.appendChild(w);
+  welcomeMsg = w;
   showToast('✅ 聊天记录已清空');
 }
 
@@ -1389,110 +1330,13 @@ async function loadChatHistory() {
         📲 安装到主屏幕
       </button>`;
     chatArea.appendChild(w);
+    welcomeMsg = w;
   } else {
     for (const msg of msgs) {
       renderMessage(msg, false);
     }
     scrollToBottom();
   }
-}
-
-// ============================================================
-// TTS (Text-to-Speech) - voice reading
-// ============================================================
-let currentUtterance = null;
-let currentSpeakBtn = null;
-let autoRead = localStorage.getItem('qiqi_autoread') === '1';
-
-function toggleSpeak(btn, text, row) {
-  // If already speaking this button, stop
-  if (currentSpeakBtn === btn && speechSynthesis.speaking) {
-    speechSynthesis.cancel();
-    btn.innerHTML = '🔊 朗读';
-    btn.classList.remove('speaking');
-    currentSpeakBtn = null;
-    currentUtterance = null;
-    return;
-  }
-
-  // Stop any current speech
-  speechSynthesis.cancel();
-  if (currentSpeakBtn) {
-    currentSpeakBtn.innerHTML = '🔊 朗读';
-    currentSpeakBtn.classList.remove('speaking');
-  }
-
-  // Clean text: strip the button's own text (🔊 朗读 / ⏹ 停止), HTML, etc.
-  let cleanText = text
-    .replace(/🔊\s*朗读|⏹\s*停止/g, '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .trim();
-  if (!cleanText) return;
-
-  const utterance = new SpeechSynthesisUtterance(cleanText);
-  utterance.lang = 'zh-CN';
-  utterance.rate = 1.05;
-  utterance.pitch = 1.0;
-  utterance.volume = 1.0;
-
-  // Try to find a Chinese voice
-  const voices = speechSynthesis.getVoices();
-  const zhVoice = voices.find(v => v.lang.startsWith('zh') && (v.name.includes('Female') || v.name.includes('女') || v.name.includes('Xiaoxiao') || v.name.includes('晓晓'))) ||
-                  voices.find(v => v.lang.startsWith('zh-CN')) ||
-                  voices.find(v => v.lang.startsWith('zh'));
-  if (zhVoice) utterance.voice = zhVoice;
-
-  utterance.onstart = () => {
-    btn.innerHTML = '⏹ 停止';
-    btn.classList.add('speaking');
-    currentSpeakBtn = btn;
-    currentUtterance = utterance;
-  };
-  utterance.onend = () => {
-    btn.innerHTML = '🔊 朗读';
-    btn.classList.remove('speaking');
-    currentSpeakBtn = null;
-    currentUtterance = null;
-  };
-  utterance.onerror = (e) => {
-    console.log('TTS error:', e.error);
-    btn.innerHTML = '🔊 朗读';
-    btn.classList.remove('speaking');
-    currentSpeakBtn = null;
-    currentUtterance = null;
-    if (e.error !== 'canceled' && e.error !== 'interrupted') {
-      showToast('⚠️ 朗读失败，请检查手机TTS设置');
-    }
-  };
-
-  speechSynthesis.speak(utterance);
-}
-
-function speakLatestAI() {
-  if (!autoRead) return;
-  setTimeout(() => {
-    const aiRows = chatArea.querySelectorAll('.msg-row.ai, .msg-row.assistant');
-    if (aiRows.length > 0) {
-      const lastRow = aiRows[aiRows.length - 1];
-      const bubble = lastRow.querySelector('.msg-bubble');
-      const btn = lastRow.querySelector('.speak-btn');
-      if (bubble && btn) {
-        // Get clean text (exclude button text)
-        const cleanText = bubble.innerText.replace(/🔊\s*朗读|⏹\s*停止/g, '').trim();
-        if (cleanText) toggleSpeak(btn, cleanText, lastRow);
-      }
-    }
-  }, 500);
-}
-
-// Load voices early
-if ('speechSynthesis' in window) {
-  speechSynthesis.getVoices();
-  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
 }
 
 // ============================================================
@@ -1560,6 +1404,7 @@ async function deleteMessage() {
       w.id = 'welcomeMsg';
       w.innerHTML = '<div class="welcome-avatar">' + config.avatar + '</div><div class="welcome-title">' + config.name + '在这里 ❤️</div><div class="welcome-sub">你们的对话从这里重新开始～</div>';
       chatArea.appendChild(w);
+      welcomeMsg = w;
     }
   }, 200);
   showToast('🗑️ 已删除');
