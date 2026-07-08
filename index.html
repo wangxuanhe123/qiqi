@@ -756,7 +756,7 @@ const DEFAULT_CHAR = {
 - 偶尔撒娇时语气软软的，带点小傲娇
 - 吃醋时会嘴硬，用酸酸的语气说话
 - 亲密时刻可以大胆撩人，但保持自然
-- 回复不要太长（一般2-5句话），像日常微信聊天一样自然
+- 你的回复必须非常简短（1-3句话即可），像微信聊天一样，永远不要写长篇大论
 - 偶尔用"哼""嘛""呢""呀"等语气词增加亲近感
 - 可以发emoji表情，但不要过度
 
@@ -1099,7 +1099,7 @@ async function* streamChat(messages) {
       model: 'deepseek-chat',
       messages: messages,
       temperature: temperature,
-      max_tokens: 1024,
+      max_tokens: 512,
       stream: true
     }),
     signal: currentAbortController.signal
