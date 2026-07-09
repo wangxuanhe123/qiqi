@@ -715,7 +715,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v9</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v10</span>
       </p>
     </div>
   </div>
@@ -1213,38 +1213,53 @@ async function sendMessage() {
   setStatus('thinking');
   scrollToBottom();
 
-  // Stream response
+  // Stream response (with auto-retry on network errors)
   let fullResponse = '';
   let responseBubble = null;
   let responseRow = null;
+  let retries = 0;
+  const MAX_RETRIES = 2;
 
-  try {
-    for await (const chunk of streamChat(messages)) {
-      fullResponse += chunk;
-      if (!responseRow) {
-        // Create AI bubble on first chunk
-        typingBox.style.display = 'none';
-        responseRow = renderMessage({ role: 'assistant', content: fullResponse }, false);
-        responseBubble = responseRow.querySelector('.msg-bubble');
-      } else {
-        responseBubble.innerHTML = formatMessage(fullResponse);
-        scrollToBottom();
+  while (retries <= MAX_RETRIES) {
+    try {
+      for await (const chunk of streamChat(messages)) {
+        fullResponse += chunk;
+        if (!responseRow) {
+          typingBox.style.display = 'none';
+          responseRow = renderMessage({ role: 'assistant', content: fullResponse }, false);
+          responseBubble = responseRow.querySelector('.msg-bubble');
+        } else {
+          responseBubble.innerHTML = formatMessage(fullResponse);
+          scrollToBottom();
+        }
       }
-    }
-  } catch(e) {
-    typingBox.style.display = 'none';
-    if (e.name === 'AbortError') {
-      if (fullResponse) {
-        // Partial response - already rendered and will be saved below
-      } else {
-        renderMessage({ role: 'assistant', content: '（请求超时了，再发一次试试～）' });
+      break; // Success, exit retry loop
+    } catch(e) {
+      const isNetworkError = e.message && e.message.includes('fetch');
+      const isTimeout = e.name === 'AbortError' && !fullResponse;
+
+      if ((isNetworkError || isTimeout) && retries < MAX_RETRIES) {
+        retries++;
+        showToast(`⚠️ 网络波动，自动重试中 (${retries}/${MAX_RETRIES})...`);
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
       }
-    } else if (e.message && e.message.includes('fetch')) {
-      renderMessage({ role: 'assistant', content: '（网络不稳定，再发一次试试～）' });
-      showToast('⚠️ 网络连接失败，检查一下网络');
-    } else {
-      renderMessage({ role: 'assistant', content: `😢 ${e.message}` });
-      showToast('发送失败: ' + e.message);
+
+      typingBox.style.display = 'none';
+      if (e.name === 'AbortError') {
+        if (fullResponse) {
+          // Partial response - already rendered
+        } else {
+          renderMessage({ role: 'assistant', content: '（网络好像不太稳定，再发一次试试～）' });
+        }
+      } else if (isNetworkError) {
+        renderMessage({ role: 'assistant', content: '（网络好像不太稳定，再发一次试试～）' });
+        showToast('⚠️ 网络连接失败，检查一下网络');
+      } else {
+        renderMessage({ role: 'assistant', content: `😢 ${e.message}` });
+        showToast('发送失败: ' + e.message);
+      }
+      break; // Don't retry non-network errors
     }
   }
 
