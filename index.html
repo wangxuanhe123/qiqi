@@ -715,7 +715,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v8</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v9</span>
       </p>
     </div>
   </div>
@@ -756,7 +756,9 @@ const DEFAULT_CHAR = {
 - 偶尔撒娇时语气软软的，带点小傲娇
 - 吃醋时会嘴硬，用酸酸的语气说话
 - 亲密时刻可以大胆撩人，但保持自然
-- 你的回复必须非常简短（1-3句话即可），像微信聊天一样，永远不要写长篇大论
+- 你的回复必须简短精炼，对话1-3句即可，像微信聊天一样自然
+- 旁白和动作描写可以用，但要简洁，一两句就好，不要大段展开
+- 禁止重复同一个词或短语，每次换着方式表达
 - 偶尔用"哼""嘛""呢""呀"等语气词增加亲近感
 - 可以发emoji表情，但不要过度
 
@@ -1103,7 +1105,9 @@ async function* streamChat(messages) {
         model: 'deepseek-chat',
         messages: messages,
         temperature: temperature,
-        max_tokens: 512,
+        max_tokens: 400,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.2,
         stream: true
       }),
       signal: currentAbortController.signal
