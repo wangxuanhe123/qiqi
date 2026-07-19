@@ -715,7 +715,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v10</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v11</span>
       </p>
     </div>
   </div>
@@ -890,16 +890,18 @@ async function importMessages(msgs) {
 // Settings Persistence
 // ============================================================
 function loadSettings() {
+  // Load character config (may throw if corrupted)
   try {
     const saved = localStorage.getItem('qiqi_config');
     if (saved) config = { ...DEFAULT_CHAR, ...JSON.parse(saved) };
-    apiKey = localStorage.getItem('qiqi_apikey') || '';
-    darkMode = localStorage.getItem('qiqi_dark') === '1';
-    temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
-    contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
   } catch(e) {
     config = { ...DEFAULT_CHAR };
   }
+  // Load other settings separately (not affected by config corruption)
+  apiKey = localStorage.getItem('qiqi_apikey') || '';
+  darkMode = localStorage.getItem('qiqi_dark') === '1';
+  temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
+  contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
 
   // Apply to UI
   $('#charName').value = config.name;
@@ -1032,19 +1034,22 @@ function renderMessage(msg, animate = true) {
 
   // Long-press for user messages
   if (msg.role === 'user') {
-    let pressTimer;
-    const clearPress = () => { clearTimeout(pressTimer); };
+    let pressTimer, pressFired = false;
+    const clearPress = () => { clearTimeout(pressTimer); pressFired = false; };
 
     bubble.addEventListener('touchstart', (e) => {
+      pressFired = false;
       pressTimer = setTimeout(() => {
-        clearPress();
+        pressFired = true;
         openCtxMenu(row, e);
       }, 500);
     }, { passive: true });
     bubble.addEventListener('touchend', clearPress);
     bubble.addEventListener('touchmove', clearPress);
     bubble.addEventListener('contextmenu', (e) => {
+      if (pressFired) return; // already handled by touchstart timer
       e.preventDefault();
+      clearPress();
       openCtxMenu(row, e);
     });
   }
@@ -1127,35 +1132,43 @@ async function* streamChat(messages) {
   const decoder = new TextDecoder();
   let buffer = '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      // 60s per-read timeout to prevent infinite hang
+      const result = await Promise.race([
+        reader.read(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('stream_read_timeout')), 60000))
+      ]);
+      if (result.done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      buffer += decoder.decode(result.value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') return;
-        try {
-          const json = JSON.parse(data);
-          const content = json.choices?.[0]?.delta?.content;
-          if (content) yield content;
-        } catch(e) { /* skip parse errors */ }
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') return;
+          try {
+            const json = JSON.parse(data);
+            const content = json.choices?.[0]?.delta?.content;
+            if (content) yield content;
+          } catch(e) { /* skip parse errors */ }
+        }
       }
     }
-  }
 
-  // Process any remaining data in buffer after stream ends
-  if (buffer.trim() && buffer.startsWith('data: ') && buffer.trim() !== 'data: [DONE]') {
-    try {
-      const data = buffer.trim().slice(6).trim();
-      const json = JSON.parse(data);
-      const content = json.choices?.[0]?.delta?.content;
-      if (content) yield content;
-    } catch(e) { /* skip */ }
+    // Process any remaining data in buffer after stream ends
+    if (buffer.trim() && buffer.startsWith('data: ') && buffer.trim() !== 'data: [DONE]') {
+      try {
+        const data = buffer.trim().slice(6).trim();
+        const json = JSON.parse(data);
+        const content = json.choices?.[0]?.delta?.content;
+        if (content) yield content;
+      } catch(e) { /* skip */ }
+    }
+  } finally {
+    reader.cancel().catch(() => {});
   }
 }
 
@@ -1192,13 +1205,8 @@ async function sendMessage() {
       deduped.push({ role: m.role, content: m.content });
     }
   }
-  // Also ensure the current message isn't already the last one in history
-  const lastMsg = deduped[deduped.length - 1];
-  if (lastMsg && lastMsg.role === 'user' && lastMsg.content === text) {
-    // Current message is already in history, don't add it again
-  } else {
-    deduped.push({ role: 'user', content: text });
-  }
+  // Current message is always new (we build before saving)
+  deduped.push({ role: 'user', content: text });
   const messages = [
     { role: 'system', content: buildSystemPrompt() },
     ...deduped
@@ -1332,11 +1340,13 @@ async function handleImport(event) {
     const text = await file.text();
     const msgs = JSON.parse(text);
     if (!Array.isArray(msgs)) throw new Error('格式错误');
+    // Validate each message
+    const valid = msgs.filter(m => m && typeof m.role === 'string' && typeof m.content === 'string' && (m.role === 'user' || m.role === 'assistant'));
+    if (valid.length === 0) throw new Error('没有有效的消息');
 
-    await importMessages(msgs);
-    // Reload chat
+    await importMessages(valid);
     await loadChatHistory();
-    showToast(`✅ 已导入 ${msgs.length} 条消息`);
+    showToast(`✅ 已导入 ${valid.length} 条消息`);
   } catch(e) {
     showToast('❌ 导入失败: ' + e.message);
   }
@@ -1415,16 +1425,19 @@ function editMessage() {
 
 async function deleteMessage() {
   if (!ctxTarget) return;
-  const msgId = parseInt(ctxTarget.dataset.msgId);
+  // Capture target locally to prevent race if ctxTarget changes during await
+  const target = ctxTarget;
+  const msgId = parseInt(target.dataset.msgId);
+  closeCtxMenu(); // close menu immediately
+
   if (!isNaN(msgId)) {
     await deleteMessageById(msgId);
   }
-  ctxTarget.style.opacity = '0';
-  ctxTarget.style.transform = 'scale(0.8)';
-  ctxTarget.style.transition = 'all 0.2s ease';
+  target.style.opacity = '0';
+  target.style.transform = 'scale(0.8)';
+  target.style.transition = 'all 0.2s ease';
   setTimeout(() => {
-    ctxTarget.remove();
-    // If no more messages, show welcome
+    target.remove();
     if (chatArea.querySelectorAll('.msg-row').length === 0) {
       chatArea.innerHTML = '';
       const w = document.createElement('div');
@@ -1436,7 +1449,6 @@ async function deleteMessage() {
     }
   }, 200);
   showToast('🗑️ 已删除');
-  closeCtxMenu();
 }
 
 // ============================================================
