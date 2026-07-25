@@ -1107,7 +1107,7 @@ async function* streamChat(messages) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-pro',
         messages: messages,
         temperature: temperature,
         max_tokens: 256,
