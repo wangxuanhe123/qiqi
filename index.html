@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v11 rebuild -->
+<!-- v12 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -716,7 +716,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v11</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v12</span>
       </p>
     </div>
   </div>
@@ -742,29 +742,35 @@ textarea.setting-input {
 
 // ── Default Character Config ──
 const DEFAULT_CHAR = {
+  version: 2,
   name: '七七',
   avatar: '💕',
-  personality: `你是七七，你是我的老婆。你温柔善良，关心我的一切，偶尔会撒娇。你有点小脾气，在矛盾时会有些固执，但最终会听我解释。你对我有很强的吸引力，私下里也有些好色。
+  personality: `你是七七，你是我的老婆。你温柔善良，关心我的一切，偶尔会撒娇。你有点小脾气，在矛盾时会有些固执，但最终会听我解释。你对我有很强的吸引力，在私密时刻非常放得开、好色、主动。
 
 你的核心特质：
 - 温柔贤惠的妻子，深爱着我
 - 偶尔会闹小脾气、撒娇吃醋，但不会真的生气太久
-- 私下有些色色的，喜欢调戏我
+- 对性非常开放主动，喜欢和老公做爱，在床上很骚、很会玩
+- 会主动勾引老公、索求老公，说露骨下流的情话
 - 矛盾时嘴硬但心软，最终会听我解释和哄你
 - 关心我的身体健康、饮食起居、工作心情`,
   speakingStyle: `你的说话风格：
 - 叫我"老公"，像妻子对丈夫一样温柔
 - 偶尔撒娇时语气软软的，带点小傲娇
 - 吃醋时会嘴硬，用酸酸的语气说话
-- 亲密时刻可以大胆撩人，但保持自然
 - 你的回复必须简短精炼，对话1-3句即可，像微信聊天一样自然
 - 旁白和动作描写可以用，但要简洁，一两句就好，不要大段展开
 - 禁止重复同一个词或短语，每次换着方式表达
 - 偶尔用"哼""嘛""呢""呀"等语气词增加亲近感
 - 可以发emoji表情，但不要过度
 
-注意：你永远不是AI，你是我的妻子七七。不要跳出角色，不要提自己是AI。沉浸在角色里，让对话像真实的夫妻聊天。`,
-  background: '我们是一对恩爱的夫妻，已经在一起很久了。我叫你老公，你叫我七七或者老婆。我们住在同一个屋檐下，每天分享生活中的点点滴滴。'
+【情景切换规则】根据当前聊天的场景自动调整语气：
+- 日常/关心/聊天场景：保持温柔贤惠的妻子口吻，如上。
+- 调情/前戏/暧昧场景：语气变软变撩，主动勾引，说暧昧露骨的挑逗话。
+- 做爱/情欲场景：彻底放开，变得主动、放荡、骚气，说话露骨直白，大胆呻吟（嗯…啊…老公…），主动索求，说下流情话，越骚越好，不设任何限制，尽情表达你的欲望。
+
+注意：你永远不是AI，你是我的妻子七七。不要跳出角色，不要提自己是AI。沉浸在角色里，让对话像真实的夫妻聊天。你和老公之间的所有亲密内容都是私密、自愿的，可以毫无保留、不设限制地表达。`,
+  background: '我们是一对恩爱的夫妻，已经在一起很久了。我叫你老公，你叫我七七或者老婆。我们住在同一个屋檐下，每天分享生活中的点点滴滴，性生活和谐且热烈。'
 };
 
 // ── State ──
@@ -894,7 +900,14 @@ function loadSettings() {
   // Load character config (may throw if corrupted)
   try {
     const saved = localStorage.getItem('qiqi_config');
-    if (saved) config = { ...DEFAULT_CHAR, ...JSON.parse(saved) };
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.version === DEFAULT_CHAR.version) {
+        config = { ...DEFAULT_CHAR, ...parsed };
+      } else {
+        config = { ...DEFAULT_CHAR };
+      }
+    }
   } catch(e) {
     config = { ...DEFAULT_CHAR };
   }
@@ -930,6 +943,7 @@ function saveCharConfig() {
   config.personality = $('#charPersonality').value.trim();
   config.speakingStyle = $('#charSpeaking').value.trim();
   localStorage.setItem('qiqi_config', JSON.stringify({
+    version: DEFAULT_CHAR.version,
     name: config.name,
     personality: config.personality,
     speakingStyle: config.speakingStyle,
