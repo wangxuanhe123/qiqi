@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v12 rebuild -->
+<!-- v13 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -716,7 +716,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v12</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v13</span>
       </p>
     </div>
   </div>
@@ -953,8 +953,10 @@ function saveCharConfig() {
 }
 
 function saveModelParams() {
-  temperature = parseFloat($('#temperature').value) || 0.9;
-  contextRounds = parseInt($('#contextRounds').value) || 20;
+  const t = parseFloat($('#temperature').value);
+  temperature = isNaN(t) ? 0.9 : t;
+  const c = parseInt($('#contextRounds').value);
+  contextRounds = isNaN(c) ? 20 : c;
   localStorage.setItem('qiqi_temp', temperature);
   localStorage.setItem('qiqi_ctx', contextRounds);
 }
@@ -1045,6 +1047,7 @@ function renderMessage(msg, animate = true) {
 
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
+  bubble.dataset.raw = msg.content;
   bubble.innerHTML = formatMessage(msg.content);
 
   // Long-press for user messages
@@ -1097,8 +1100,6 @@ function buildSystemPrompt() {
 ${config.speakingStyle}
 
 背景信息：${config.background}
-
-当前时间：${new Date().toLocaleString('zh-CN')}
 
 记住：你的名字是${config.name}，你永远不是AI助手。你必须沉浸在${config.name}这个角色中，用她的身份、性格和语气来回复。绝对不要跳出角色说"作为AI"之类的话。`
 }
@@ -1212,16 +1213,21 @@ async function sendMessage() {
 
   // Build messages array BEFORE saving
   const rawHistory = await loadMessages(contextRounds * 2);
-  // Deduplicate: remove consecutive messages with same role+content
+  // Deduplicate consecutive identical messages — including the new one (prevents the "连着两声" bug when re-sending after a failure)
   const deduped = [];
-  for (const m of rawHistory) {
+  const pending = [
+    ...rawHistory.map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: text }
+  ];
+  for (const m of pending) {
     const prev = deduped[deduped.length - 1];
     if (!prev || prev.role !== m.role || prev.content !== m.content) {
-      deduped.push({ role: m.role, content: m.content });
+      deduped.push(m);
     }
   }
-  // Current message is always new (we build before saving)
-  deduped.push({ role: 'user', content: text });
+  // Append current time to the final message (kept out of the system prompt so DeepSeek can cache the history)
+  const last = deduped[deduped.length - 1];
+  last.content = `${last.content}\n\n（现在时间：${new Date().toLocaleString('zh-CN')}）`;
   const messages = [
     { role: 'system', content: buildSystemPrompt() },
     ...deduped
@@ -1241,6 +1247,7 @@ async function sendMessage() {
   let responseBubble = null;
   let responseRow = null;
   let retries = 0;
+  let networkFailed = false;
   const MAX_RETRIES = 2;
 
   while (retries <= MAX_RETRIES) {
@@ -1258,29 +1265,38 @@ async function sendMessage() {
       }
       break; // Success, exit retry loop
     } catch(e) {
-      const isNetworkError = e.message && e.message.includes('fetch');
-      const isTimeout = e.name === 'AbortError' && !fullResponse;
+      const msg = (e && e.message) || '';
+      const isAbort = e && e.name === 'AbortError';
+      const isNetworkError = msg.includes('fetch') || msg.includes('stream_read_timeout') || msg.includes('Load failed');
+      const isTimeout = isAbort && !fullResponse;
 
       if ((isNetworkError || isTimeout) && retries < MAX_RETRIES) {
         retries++;
+        // Reset the partial reply so the retry starts clean (avoids duplicated content)
+        if (responseRow) {
+          responseRow.remove();
+          responseRow = null;
+          responseBubble = null;
+        }
+        fullResponse = '';
         showToast(`⚠️ 网络波动，自动重试中 (${retries}/${MAX_RETRIES})...`);
         await new Promise(r => setTimeout(r, 2000));
         continue;
       }
 
       typingBox.style.display = 'none';
-      if (e.name === 'AbortError') {
-        if (fullResponse) {
-          // Partial response - already rendered
-        } else {
+      if (isAbort) {
+        networkFailed = true;
+        if (!fullResponse) {
           renderMessage({ role: 'assistant', content: '（网络好像不太稳定，再发一次试试～）' });
         }
       } else if (isNetworkError) {
+        networkFailed = true;
         renderMessage({ role: 'assistant', content: '（网络好像不太稳定，再发一次试试～）' });
         showToast('⚠️ 网络连接失败，检查一下网络');
       } else {
-        renderMessage({ role: 'assistant', content: `😢 ${e.message}` });
-        showToast('发送失败: ' + e.message);
+        renderMessage({ role: 'assistant', content: `😢 ${msg}` });
+        showToast('发送失败: ' + msg);
       }
       break; // Don't retry non-network errors
     }
@@ -1296,7 +1312,7 @@ async function sendMessage() {
   typingBox.style.display = 'none';
   isGenerating = false;
   currentAbortController = null;
-  setStatus('online');
+  setStatus(networkFailed ? 'offline' : 'online');
   msgInput.focus();
   onInputChange();
 }
@@ -1336,8 +1352,10 @@ async function exportChat() {
     const now = new Date().toISOString().slice(0, 10);
     a.href = url;
     a.download = `七七聊天记录_${now}.json`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     showToast(`✅ 已导出 ${msgs.length} 条消息`);
   } catch(e) {
     showToast('❌ 导出失败');
@@ -1426,8 +1444,8 @@ function editMessage() {
   if (!ctxTarget) return;
   const bubble = ctxTarget.querySelector('.msg-bubble');
   if (bubble) {
-    // Get plain text from bubble (strip html)
-    const text = bubble.innerText.trim();
+    // Use raw text when available (preserves **bold**), else fall back to stripped HTML
+    const text = (bubble.dataset.raw != null ? bubble.dataset.raw : bubble.innerText).trim();
     msgInput.value = text;
     msgInput.focus();
     msgInput.style.height = 'auto';
