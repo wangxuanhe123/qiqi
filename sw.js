@@ -1,5 +1,5 @@
 // Service Worker for 七七 · AI伴侣
-const CACHE_NAME = 'qiqi-v3';
+const CACHE_NAME = 'qiqi-v4';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json'
@@ -53,9 +53,9 @@ self.addEventListener('fetch', (event) => {
         // Offline: try cache
         return caches.match(event.request).then((cached) => {
           return cached || new Response(
-            '<html><body style="text-align:center;padding-top:40vh;font-family:sans-serif;background:#fce4ec;">' +
+            '<html><head><meta charset="utf-8"></head><body style="text-align:center;padding-top:40vh;font-family:sans-serif;background:#fce4ec;">' +
             '<h1>💕</h1><p>七七暂时连不上网络...</p><p>请检查网络后重试</p></body></html>',
-            { headers: { 'Content-Type': 'text/html' } }
+            { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
           );
         });
       })
