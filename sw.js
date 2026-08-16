@@ -1,5 +1,5 @@
 // Service Worker for 七七 · AI伴侣
-const CACHE_NAME = 'qiqi-v8';
+const CACHE_NAME = 'qiqi-v9';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json'
@@ -38,7 +38,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('api.deepseek.com')) return;
 
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'reload' })
       .then((response) => {
         // Cache successful responses
         if (response.status === 200) {
