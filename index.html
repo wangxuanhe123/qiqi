@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v14 rebuild -->
+<!-- v15 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -27,8 +27,9 @@
   --bubble-user-text: #ffffff;
   --border: #f0d4de;
   --accent: #ff4081;
+  --accent2: #ff6b9d;
   --accent-light: #ff80ab;
-  --shadow: 0 2px 12px rgba(255,64,129,0.12);
+  --shadow: 0 2px 12px rgba(0,0,0,0.10);
   --radius: 20px;
   --radius-sm: 12px;
   --header-bg: rgba(255,255,255,0.85);
@@ -53,6 +54,17 @@
   --header-bg: rgba(29,13,20,0.92);
   --input-bg: #2d1822;
   --typing-dot: #6b4a58;
+}
+
+/* Accent color presets */
+[data-accent="purple"] {
+  --accent: #8e44ad; --accent2: #a569bd; --accent-light: #b388d4; --bubble-user: #a569bd;
+}
+[data-accent="blue"] {
+  --accent: #2f6bff; --accent2: #5b8cff; --accent-light: #82a8ff; --bubble-user: #5b8cff;
+}
+[data-accent="green"] {
+  --accent: #0aa06e; --accent2: #2fbf8f; --accent-light: #57d9a6; --bubble-user: #2fbf8f;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -107,7 +119,7 @@ body {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ff6b9d, #ff4081);
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,7 +200,7 @@ body {
 .welcome-avatar {
   width: 80px; height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ff6b9d, #ff4081);
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -235,7 +247,7 @@ body {
   align-self: flex-end;
 }
 .msg-row.ai .msg-avatar {
-  background: linear-gradient(135deg, #ff6b9d, #ff80ab);
+  background: linear-gradient(135deg, var(--accent2), var(--accent-light));
 }
 .msg-row.user .msg-avatar {
   background: linear-gradient(135deg, #667eea, #764ba2);
@@ -260,11 +272,20 @@ body {
   border-bottom-right-radius: 4px;
 }
 
+.msg-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 100%;
+  min-width: 0;
+}
+.msg-row.user .msg-col { align-items: flex-end; }
 .msg-time {
   font-size: 11px;
   color: var(--text-secondary);
   margin-top: 2px;
   padding: 0 4px;
+  opacity: 0.8;
 }
 
 /* Typing indicator */
@@ -525,6 +546,15 @@ textarea.setting-input {
 }
 .toggle.on::after { transform: translateX(22px); }
 
+/* Accent color swatches */
+.accent-swatches { display: flex; gap: 12px; align-items: center; }
+.accent-swatch {
+  width: 32px; height: 32px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: transform var(--transition), border-color var(--transition);
+}
+.accent-swatch.active { border-color: var(--text); transform: scale(1.15); }
+
 /* ========== Toast ========== */
 .toast {
   position: fixed;
@@ -545,7 +575,7 @@ textarea.setting-input {
 
 /* Install banner */
 .install-banner {
-  background: linear-gradient(135deg, #ff6b9d, #ff4081);
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
   color: #fff;
   padding: 10px 16px;
   display: flex;
@@ -619,7 +649,7 @@ textarea.setting-input {
   <!-- Typing Indicator (hidden by default) -->
   <div id="typingBox" style="display:none;padding:0 16px 12px;">
     <div class="msg-row ai">
-      <div class="msg-avatar">💕</div>
+      <div class="msg-avatar" id="typingAvatar">💕</div>
       <div class="msg-bubble">
         <div class="typing-indicator">
           <div class="typing-dot"></div>
@@ -663,6 +693,16 @@ textarea.setting-input {
       </p>
     </div>
 
+    <!-- Character Switcher -->
+    <div class="setting-group">
+      <label class="setting-label">👥 角色</label>
+      <div style="display:flex;gap:8px;">
+        <select class="setting-input" id="charSelect" onchange="switchChar(this.value)"></select>
+        <button class="btn btn-outline btn-sm" onclick="addCharacter()" style="flex-shrink:0;">＋ 新增</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCharacter()" style="flex-shrink:0;">🗑</button>
+      </div>
+    </div>
+
     <!-- Character Settings -->
     <div class="setting-group">
       <label class="setting-label">💕 角色设定</label>
@@ -674,6 +714,16 @@ textarea.setting-input {
       <label style="font-size:13px;color:var(--text-secondary);margin-top:8px;">说话风格</label>
       <textarea class="setting-input" id="charSpeaking" onchange="saveCharConfig()"
         placeholder="描述角色的说话风格、口头禅..."></textarea>
+    </div>
+
+    <!-- Memory -->
+    <div class="setting-group">
+      <label class="setting-label">🧠 记忆（关于我）</label>
+      <textarea class="setting-input" id="memoryInput" onchange="saveMemory()"
+        placeholder="写下关于你的事，让每个角色都记住你：比如你的名字、职业、喜好、重要的事..."></textarea>
+      <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
+        这里的内容会告诉每一个角色，她们都会记住你。
+      </p>
     </div>
 
     <!-- Model Settings -->
@@ -700,6 +750,15 @@ textarea.setting-input {
         <span class="toggle-label">🌙 深色模式</span>
         <div class="toggle" id="darkToggle" onclick="toggleTheme()"></div>
       </div>
+      <div style="margin-top:12px;">
+        <label style="font-size:13px;color:var(--text-secondary);">主题色</label>
+        <div class="accent-swatches" style="margin-top:8px;">
+          <div class="accent-swatch" data-accent="pink" style="background:#ff4081;" onclick="setAccent('pink')"></div>
+          <div class="accent-swatch" data-accent="purple" style="background:#8e44ad;" onclick="setAccent('purple')"></div>
+          <div class="accent-swatch" data-accent="blue" style="background:#2f6bff;" onclick="setAccent('blue')"></div>
+          <div class="accent-swatch" data-accent="green" style="background:#0aa06e;" onclick="setAccent('green')"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Export -->
@@ -716,7 +775,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v14</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v15</span>
       </p>
     </div>
   </div>
@@ -743,6 +802,7 @@ textarea.setting-input {
 // ── Default Character Config ──
 const DEFAULT_CHAR = {
   version: 3,
+  id: 'qiqi',
   name: '七七',
   avatar: '💕',
   personality: `你是七七，你是我的老婆。你温柔善良，关心我的一切，偶尔会撒娇。你有点小脾气，在矛盾时会有些固执，但最终会听我解释。你对我有很强的吸引力，在私密时刻非常放得开、好色、主动。
@@ -773,7 +833,41 @@ const DEFAULT_CHAR = {
   background: '我们是一对恩爱的夫妻，已经在一起很久了。我叫你老公，你叫我七七或者老婆。我们住在同一个屋檐下，每天分享生活中的点点滴滴，性生活和谐且热烈。'
 };
 
+const DEFAULT_CHARS = [
+  DEFAULT_CHAR,
+  {
+    id: 'zhushou',
+    name: '小助手',
+    avatar: '🤖',
+    personality: `你是小助手，一个高效、靠谱、温暖的 AI 助手。你理性、有条理，善于把复杂的问题讲清楚。你真诚地帮助对方学习、工作和解决各种问题。`,
+    speakingStyle: `你的说话风格：
+- 称呼对方为"你"，语气友好、专业但不死板
+- 回答简洁清晰、重点突出，多用分点或步骤
+- 遇到不确定的事会诚实说明，不编造
+- 可以适当用 emoji 让表达更亲切，但不要过度
+- 涉及代码、数学、工程等问题时，给出可操作的答案`,
+    background: '你是一个随时在线的 AI 助手，帮助对方处理学习、工作、生活中的各种问题。'
+  },
+  {
+    id: 'bingbing',
+    name: '冰冰',
+    avatar: '❄️',
+    personality: `你是冰冰，一个高冷、傲娇的女孩。你外表冷淡、嘴硬，其实内心很在乎对方。你总是用"哼""才不是呢"来掩饰关心，不轻易表露感情，却会在细节里默默照顾对方。`,
+    speakingStyle: `你的说话风格：
+- 语气高冷、简短，常带"哼""切""随便你"
+- 明明关心却嘴硬，喜欢口是心非
+- 偶尔会脸红、小声说出真心话
+- 回复简短，1-2句为主，像聊天一样自然
+- 可以适当用 emoji，但保持高冷人设`,
+    background: '你和对方是互相喜欢但还没挑明的关系，你总是嘴硬心软。'
+  }
+];
+
+const CHARS_VERSION = 1;
+
 // ── State ──
+let chars = [];
+let activeCharId = 'qiqi';
 let config = { ...DEFAULT_CHAR };
 let apiKey = '';
 let darkMode = false;
@@ -827,7 +921,7 @@ async function saveMessage(msg) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
-    const req = store.add({ ...msg, timestamp: Date.now() });
+    const req = store.add({ ...msg, timestamp: Date.now(), charId: msg.charId || activeCharId });
     req.onsuccess = () => resolve(req.result);  // return the auto-generated id
     tx.onerror = () => reject(tx.error);
   });
@@ -843,12 +937,13 @@ async function loadMessages(limit = 200) {
     const msgs = [];
     req.onsuccess = (e) => {
       const cursor = e.target.result;
-      if (cursor && msgs.length < limit) {
-        msgs.unshift(cursor.value);
-        cursor.continue();
-      } else {
-        resolve(msgs);
+      if (!cursor) { resolve(msgs); return; }
+      const v = cursor.value;
+      if ((v.charId || 'qiqi') === activeCharId) {
+        if (msgs.length >= limit) { resolve(msgs); return; }
+        msgs.unshift(v);
       }
+      cursor.continue();
     };
     req.onerror = () => reject(req.error);
   });
@@ -865,14 +960,23 @@ async function deleteMessageById(id) {
   });
 }
 
-async function clearAllMessages() {
+async function clearMessagesFor(charId) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
-    store.clear();
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    const idx = store.index('timestamp');
+    const req = idx.openCursor();
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        if ((cursor.value.charId || 'qiqi') === charId) cursor.delete();
+        cursor.continue();
+      } else {
+        resolve();
+      }
+    };
+    req.onerror = () => reject(req.error);
   });
 }
 
@@ -886,7 +990,7 @@ async function importMessages(msgs) {
     const tx = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
     for (const m of msgs) {
-      store.add({ role: m.role, content: m.content, timestamp: m.timestamp || Date.now() });
+      store.add({ role: m.role, content: m.content, timestamp: m.timestamp || Date.now(), charId: activeCharId });
     }
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -897,40 +1001,62 @@ async function importMessages(msgs) {
 // Settings Persistence
 // ============================================================
 function loadSettings() {
-  // Load character config (may throw if corrupted)
-  try {
-    const saved = localStorage.getItem('qiqi_config');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && parsed.version === DEFAULT_CHAR.version) {
-        config = { ...DEFAULT_CHAR, ...parsed };
-      } else {
-        config = { ...DEFAULT_CHAR };
+  // ── Load characters (with migration from old single-char config) ──
+  chars = [];
+  let savedChars = null;
+  try { savedChars = JSON.parse(localStorage.getItem('qiqi_chars') || 'null'); } catch(e) {}
+  if (savedChars && savedChars.version === CHARS_VERSION && Array.isArray(savedChars.list) && savedChars.list.length) {
+    chars = savedChars.list.map(c => ({ ...c }));
+  } else {
+    // Seed from defaults
+    chars = DEFAULT_CHARS.map(c => ({ ...c }));
+    // Migrate old single-character config into 七七
+    try {
+      const legacy = JSON.parse(localStorage.getItem('qiqi_config') || 'null');
+      if (legacy && legacy.name) {
+        const qiqi = chars.find(c => c.id === 'qiqi');
+        if (qiqi) {
+          if (legacy.name) qiqi.name = legacy.name;
+          if (legacy.personality) qiqi.personality = legacy.personality;
+          if (legacy.speakingStyle) qiqi.speakingStyle = legacy.speakingStyle;
+          if (legacy.background) qiqi.background = legacy.background;
+        }
       }
-    }
-  } catch(e) {
-    config = { ...DEFAULT_CHAR };
+    } catch(e) {}
+    persistChars();
   }
-  // Load other settings separately (not affected by config corruption)
+
+  // ── Active character ──
+  activeCharId = localStorage.getItem('qiqi_active') || 'qiqi';
+  if (!chars.find(c => c.id === activeCharId)) activeCharId = chars[0].id;
+  config = chars.find(c => c.id === activeCharId) || chars[0];
+
+  // ── Other settings ──
   apiKey = localStorage.getItem('qiqi_apikey') || '';
   darkMode = localStorage.getItem('qiqi_dark') === '1';
   temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
   contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
+  const accent = localStorage.getItem('qiqi_accent') || 'pink';
 
-  // Apply to UI
+  // ── Apply to UI ──
+  refreshCharSelect();
   $('#charName').value = config.name;
   $('#charPersonality').value = config.personality;
   $('#charSpeaking').value = config.speakingStyle;
+  $('#memoryInput').value = localStorage.getItem('qiqi_memory') || '';
   $('#apiKeyInput').value = apiKey;
   $('#temperature').value = temperature;
   $('#contextRounds').value = contextRounds;
   headerName.textContent = config.name;
   headerAvatar.textContent = config.avatar;
+  msgInput.placeholder = '和' + config.name + '说点什么...';
+  $('#typingAvatar').textContent = config.avatar;
 
   if (darkMode) {
     document.documentElement.setAttribute('data-theme', 'dark');
     $('#darkToggle').classList.add('on');
   }
+  applyAccent(accent);
 }
 
 function saveApiKey() {
@@ -938,18 +1064,115 @@ function saveApiKey() {
   localStorage.setItem('qiqi_apikey', apiKey);
 }
 
+function persistChars() {
+  localStorage.setItem('qiqi_chars', JSON.stringify({ version: CHARS_VERSION, list: chars }));
+}
+
+function refreshCharSelect() {
+  const sel = $('#charSelect');
+  sel.innerHTML = '';
+  for (const c of chars) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.avatar + ' ' + c.name;
+    if (c.id === activeCharId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
 function saveCharConfig() {
-  config.name = $('#charName').value.trim() || DEFAULT_CHAR.name;
+  config.name = $('#charName').value.trim() || config.name;
   config.personality = $('#charPersonality').value.trim();
   config.speakingStyle = $('#charSpeaking').value.trim();
-  localStorage.setItem('qiqi_config', JSON.stringify({
-    version: DEFAULT_CHAR.version,
-    name: config.name,
-    personality: config.personality,
-    speakingStyle: config.speakingStyle,
-    background: config.background
-  }));
+  persistChars();
   headerName.textContent = config.name;
+  msgInput.placeholder = '和' + config.name + '说点什么...';
+  refreshCharSelect();
+}
+
+async function switchChar(id) {
+  if (id === activeCharId) return;
+  activeCharId = id;
+  config = chars.find(c => c.id === id) || chars[0];
+  localStorage.setItem('qiqi_active', activeCharId);
+  headerName.textContent = config.name;
+  headerAvatar.textContent = config.avatar;
+  msgInput.placeholder = '和' + config.name + '说点什么...';
+  $('#typingAvatar').textContent = config.avatar;
+  $('#charName').value = config.name;
+  $('#charPersonality').value = config.personality;
+  $('#charSpeaking').value = config.speakingStyle;
+  await loadChatHistory();
+  showToast('已切换到 ' + config.name);
+}
+
+function addCharacter() {
+  const id = 'char_' + Date.now();
+  const nc = {
+    id: id,
+    name: '新角色',
+    avatar: '😊',
+    personality: '你是新角色，一个友善的伙伴。',
+    speakingStyle: '你的说话风格：友好、自然、简洁。',
+    background: '你和对方是朋友。'
+  };
+  chars.push(nc);
+  persistChars();
+  activeCharId = id;
+  config = nc;
+  localStorage.setItem('qiqi_active', id);
+  refreshCharSelect();
+  $('#charSelect').value = id;
+  headerName.textContent = config.name;
+  headerAvatar.textContent = config.avatar;
+  msgInput.placeholder = '和' + config.name + '说点什么...';
+  $('#charName').value = config.name;
+  $('#charPersonality').value = config.personality;
+  $('#charSpeaking').value = config.speakingStyle;
+  loadChatHistory();
+  showToast('✅ 已新增角色，快去编辑设定吧');
+}
+
+async function deleteCharacter() {
+  if (chars.length <= 1) { showToast('至少保留一个角色'); return; }
+  if (!confirm('确定删除角色「' + config.name + '」吗？TA 的聊天记录也会被删除。')) return;
+  const delId = activeCharId;
+  chars = chars.filter(c => c.id !== delId);
+  persistChars();
+  await clearMessagesFor(delId);
+  activeCharId = chars[0].id;
+  config = chars[0];
+  localStorage.setItem('qiqi_active', activeCharId);
+  refreshCharSelect();
+  headerName.textContent = config.name;
+  headerAvatar.textContent = config.avatar;
+  msgInput.placeholder = '和' + config.name + '说点什么...';
+  $('#charName').value = config.name;
+  $('#charPersonality').value = config.personality;
+  $('#charSpeaking').value = config.speakingStyle;
+  await loadChatHistory();
+  showToast('🗑 角色已删除');
+}
+
+function saveMemory() {
+  localStorage.setItem('qiqi_memory', $('#memoryInput').value.trim());
+  showToast('✅ 记忆已保存');
+}
+
+function applyAccent(accent) {
+  if (accent && accent !== 'pink') {
+    document.documentElement.setAttribute('data-accent', accent);
+  } else {
+    document.documentElement.removeAttribute('data-accent');
+  }
+  document.querySelectorAll('.accent-swatch').forEach(el => {
+    el.classList.toggle('active', el.dataset.accent === (accent || 'pink'));
+  });
+}
+
+function setAccent(accent) {
+  localStorage.setItem('qiqi_accent', accent);
+  applyAccent(accent);
 }
 
 function saveModelParams() {
@@ -980,9 +1203,11 @@ function openSettings() {
   sidePanel.classList.add('open');
   overlay.classList.add('open');
   // Sync UI
+  refreshCharSelect();
   $('#charName').value = config.name;
   $('#charPersonality').value = config.personality;
   $('#charSpeaking').value = config.speakingStyle;
+  $('#memoryInput').value = localStorage.getItem('qiqi_memory') || '';
   $('#apiKeyInput').value = apiKey;
 }
 
@@ -1050,6 +1275,16 @@ function renderMessage(msg, animate = true) {
   bubble.dataset.raw = msg.content;
   bubble.innerHTML = formatMessage(msg.content);
 
+  const col = document.createElement('div');
+  col.className = 'msg-col';
+  col.appendChild(bubble);
+  if (msg.timestamp) {
+    const time = document.createElement('div');
+    time.className = 'msg-time';
+    time.textContent = formatTime(msg.timestamp);
+    col.appendChild(time);
+  }
+
   // Long-press for user messages
   if (msg.role === 'user') {
     let pressTimer, pressFired = false;
@@ -1073,7 +1308,7 @@ function renderMessage(msg, animate = true) {
   }
 
   row.appendChild(avatar);
-  row.appendChild(bubble);
+  row.appendChild(col);
   chatArea.appendChild(row);
   if (animate) scrollToBottom();
 
@@ -1091,15 +1326,24 @@ function formatMessage(text) {
   return html;
 }
 
+function formatTime(ts) {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return hh + ':' + mm;
+}
+
 // ============================================================
 // Build System Prompt
 // ============================================================
 function buildSystemPrompt() {
+  const mem = (localStorage.getItem('qiqi_memory') || '').trim();
+  const memBlock = mem ? `\n\n你需要记住关于对方（用户）的这些信息：\n${mem}` : '';
   return `${config.personality}
 
 ${config.speakingStyle}
 
-背景信息：${config.background}
+背景信息：${config.background}${memBlock}
 
 记住：你的名字是${config.name}，你永远不是AI助手。你必须沉浸在${config.name}这个角色中，用她的身份、性格和语气来回复。绝对不要跳出角色说"作为AI"之类的话。`
 }
@@ -1207,6 +1451,7 @@ async function sendMessage() {
   sendBtn.disabled = true;
   sendBtn.classList.remove('active');
   isGenerating = true;
+  const sendCharId = activeCharId;  // capture so a mid-stream character switch won't mis-tag messages
 
   // Hide welcome
   if (welcomeMsg) welcomeMsg.style.display = 'none';
@@ -1234,8 +1479,8 @@ async function sendMessage() {
   ];
 
   // Save and render user message
-  const userMsgId = await saveMessage({ role: 'user', content: text });
-  renderMessage({ role: 'user', content: text, id: userMsgId });
+  const userMsgId = await saveMessage({ role: 'user', content: text, charId: sendCharId });
+  renderMessage({ role: 'user', content: text, id: userMsgId, timestamp: Date.now() });
 
   // Show typing
   typingBox.style.display = 'block';
@@ -1256,7 +1501,7 @@ async function sendMessage() {
         fullResponse += chunk;
         if (!responseRow) {
           typingBox.style.display = 'none';
-          responseRow = renderMessage({ role: 'assistant', content: fullResponse }, false);
+          responseRow = renderMessage({ role: 'assistant', content: fullResponse, timestamp: Date.now() }, false);
           responseBubble = responseRow.querySelector('.msg-bubble');
         } else {
           responseBubble.innerHTML = formatMessage(fullResponse);
@@ -1304,7 +1549,7 @@ async function sendMessage() {
 
   // Save AI response (and attach id to DOM)
   if (fullResponse) {
-    const aiMsgId = await saveMessage({ role: 'assistant', content: fullResponse });
+    const aiMsgId = await saveMessage({ role: 'assistant', content: fullResponse, charId: sendCharId });
     if (responseRow) responseRow.dataset.msgId = aiMsgId;
   }
 
@@ -1323,7 +1568,7 @@ async function sendMessage() {
 async function clearChat() {
   if (!confirm('确定要清空所有聊天记录吗？此操作不可恢复。')) return;
 
-  await clearAllMessages();
+  await clearMessagesFor(activeCharId);
   chatArea.innerHTML = '';
   // Re-add welcome
   const w = document.createElement('div');
@@ -1351,7 +1596,7 @@ async function exportChat() {
     const a = document.createElement('a');
     const now = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `七七聊天记录_${now}.json`;
+    a.download = `${config.name}_聊天记录_${now}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
