@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v18 rebuild -->
+<!-- v19 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -820,7 +820,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v18</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v19</span>
       </p>
     </div>
   </div>
@@ -1723,12 +1723,17 @@ async function sendMessage() {
     clearDigestFor(sendCharId);
   }
 
-  // Build messages array (includes the new user message)
-  const messages = await buildMessages({ newUserText: text, charId: sendCharId });
-
-  // Save and render user message
+  // Save and render the user message IMMEDIATELY (so it appears the instant you hit send)
   const userMsgId = await saveMessage({ role: 'user', content: text, charId: sendCharId });
   renderMessage({ role: 'user', content: text, id: userMsgId, timestamp: Date.now() });
+
+  // Show "typing" right away — context compression (if any) runs in the background
+  typingBox.style.display = 'block';
+  setStatus('thinking');
+  scrollToBottom();
+
+  // Build messages array (includes the new user message)
+  const messages = await buildMessages({ newUserText: text, charId: sendCharId });
 
   // Stream response
   await streamReply(messages, sendCharId);
