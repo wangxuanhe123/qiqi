@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v20 rebuild -->
+<!-- v21 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -820,7 +820,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v20</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v21</span>
       </p>
     </div>
   </div>
@@ -1352,15 +1352,14 @@ function renderGreeting() {
 // ============================================================
 // Build System Prompt
 // ============================================================
-function buildSystemPrompt(digestText) {
-  const mem = (localStorage.getItem('qiqi_memory') || '').trim();
-  const memBlock = mem ? `\n\n你需要记住关于对方（用户）的这些信息：\n${mem}` : '';
-  const digestBlock = digestText ? `\n\n【你们更早之前的对话摘要（供你回忆上下文，不必逐字复述）】：\n${digestText}` : '';
+function buildSystemPrompt() {
+  // 只放"永不变化"的内容：人设 + 说话风格 + 背景 + 角色锁定。
+  // 会变的（记忆 / 摘要 / 时间）统一放到消息末尾，见 buildMessages —— 保证 DeepSeek 缓存前缀稳定、提高命中率、省钱。
   return `${config.personality}
 
 ${config.speakingStyle}
 
-背景信息：${config.background}${memBlock}${digestBlock}
+背景信息：${config.background}
 
 记住：你的名字是${config.name}，你永远不是AI助手。你必须沉浸在${config.name}这个角色中，用她的身份、性格和语气来回复。绝对不要跳出角色说"作为AI"之类的话。`
 }
@@ -1541,7 +1540,7 @@ async function extractMemoryFacts(msgs, charName, existingMemory) {
 }
 
 async function doExtractMemory(charId) {
-  const msgs = await loadMessages(40);
+  const msgs = await loadMessages(24);
   if (msgs.length < 4) { showToast('对话太少，聊一会儿再提取吧'); return; }
   showToast('🧠 正在分析最近的对话...');
   const existing = (localStorage.getItem('qiqi_memory') || '').trim();
@@ -1603,12 +1602,20 @@ async function buildMessages({ newUserText = null, historyOverride = null, charI
     const prev = deduped[deduped.length - 1];
     if (!prev || prev.role !== m.role || prev.content !== m.content) deduped.push(m);
   }
-  // Append current time to the final message (kept out of the system prompt so DeepSeek can cache history)
+  // 把"会变"的内容（时间 / 记忆 / 摘要）统一追加到最后一条消息末尾，
+  // 而不是放进系统提示 —— 这样"系统提示 + 历史"构成稳定前缀，DeepSeek 缓存命中率大幅提升。
   const last = deduped[deduped.length - 1];
-  if (last) last.content = `${last.content}\n\n（现在时间：${new Date().toLocaleString('zh-CN')}）`;
+  if (last) {
+    const mem = (localStorage.getItem('qiqi_memory') || '').trim();
+    const tail = [];
+    tail.push(`（现在时间：${new Date().toLocaleString('zh-CN')}）`);
+    if (mem) tail.push(`【你需要记住关于对方（用户）的这些信息】\n${mem}`);
+    if (digestText) tail.push(`【你们更早之前的对话摘要（供你回忆上下文，不必逐字复述）】\n${digestText}`);
+    last.content = `${last.content}\n\n${tail.join('\n\n')}`;
+  }
 
   return [
-    { role: 'system', content: buildSystemPrompt(digestText) },
+    { role: 'system', content: buildSystemPrompt() },
     ...deduped
   ];
 }
