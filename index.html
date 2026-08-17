@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v16 rebuild -->
+<!-- v18 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -7,65 +7,69 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="七七">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23ff6b9d'/><stop offset='100%25' style='stop-color:%23ff4081'/></linearGradient></defs><rect width='192' height='192' rx='40' fill='url(%23g)'/><text x='96' y='118' font-size='100' text-anchor='middle' dominant-baseline='middle'>💕</text></svg>">
-<meta name="theme-color" content="#fce4ec" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1a0d14" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23e8ab98'/><stop offset='100%25' style='stop-color:%23dc8f7c'/></linearGradient></defs><rect width='192' height='192' rx='40' fill='url(%23g)'/><text x='96' y='118' font-size='100' text-anchor='middle' dominant-baseline='middle'>💕</text></svg>">
+<meta name="theme-color" content="#fdf4e8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#2e211f" media="(prefers-color-scheme: dark)">
 <title>七七 ❤️</title>
 <link rel="manifest" href="/qiqi/manifest.json">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💕</text></svg>">
 <style>
 /* ========== CSS Variables & Reset ========== */
 :root {
-  --bg: #fce4ec;
-  --bg-chat: #fce4ec;
-  --surface: #ffffff;
-  --surface2: #f8f0f4;
-  --text: #3d1e2b;
-  --text-secondary: #8b6b7a;
-  --bubble-ai: #ffffff;
-  --bubble-user: #ff6b9d;
+  --bg: #fdf4e8;
+  --bg-chat: #fdf2e4;
+  --bg-grad-top: #fdf5ea;
+  --bg-grad-bottom: #f9e2cf;
+  --surface: #fffaf3;
+  --surface2: #fbe9da;
+  --text: #5a463c;
+  --text-secondary: #a68c7a;
+  --bubble-ai: #fffaf3;
+  --bubble-user: #e3937c;
   --bubble-user-text: #ffffff;
-  --border: #f0d4de;
-  --accent: #ff4081;
-  --accent2: #ff6b9d;
-  --accent-light: #ff80ab;
+  --border: #f2dac6;
+  --accent: #dc8f7c;
+  --accent2: #e8ab98;
+  --accent-light: #f3cbbb;
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
-  --shadow: 0 2px 12px rgba(0,0,0,0.10);
+  --shadow: 0 2px 12px rgba(90,70,60,0.10);
   --radius: 20px;
   --radius-sm: 12px;
-  --header-bg: rgba(255,255,255,0.55);
-  --input-bg: #ffffff;
-  --danger: #e53935;
-  --typing-dot: #d4a0b0;
+  --header-bg: rgba(255,250,243,0.55);
+  --input-bg: #fffaf3;
+  --danger: #d46556;
+  --typing-dot: #e7b69f;
   --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
 }
 
 [data-theme="dark"] {
-  --bg: #1a0d14;
-  --bg-chat: #1a0d14;
-  --surface: #2d1822;
-  --surface2: #24131c;
-  --text: #f0d8e2;
-  --text-secondary: #b8909e;
-  --bubble-ai: #2d1822;
-  --bubble-user: #ff4081;
+  --bg: #2e211f;
+  --bg-chat: #2e211f;
+  --bg-grad-top: #362723;
+  --bg-grad-bottom: #291c1a;
+  --surface: #3c2b26;
+  --surface2: #33241f;
+  --text: #f5e6dc;
+  --text-secondary: #c5a596;
+  --bubble-ai: #3c2b26;
+  --bubble-user: #dc8f7c;
   --bubble-user-text: #ffffff;
-  --border: #3d1e2e;
+  --border: #543c34;
   --shadow: 0 2px 12px rgba(0,0,0,0.3);
-  --header-bg: rgba(29,13,20,0.6);
-  --input-bg: #2d1822;
-  --typing-dot: #6b4a58;
+  --header-bg: rgba(46,33,31,0.6);
+  --input-bg: #3c2b26;
+  --typing-dot: #7a5a4e;
 }
 
 /* Accent color presets */
 [data-accent="purple"] {
-  --accent: #8e44ad; --accent2: #a569bd; --accent-light: #b388d4; --bubble-user: #a569bd;
+  --accent: #a890b8; --accent2: #c0a9cc; --accent-light: #d8c6de; --bubble-user: #b09ac0;
 }
 [data-accent="blue"] {
-  --accent: #2f6bff; --accent2: #5b8cff; --accent-light: #82a8ff; --bubble-user: #5b8cff;
+  --accent: #9fb6cf; --accent2: #b8c9dd; --accent-light: #cfdbe9; --bubble-user: #a8bed4;
 }
 [data-accent="green"] {
-  --accent: #0aa06e; --accent2: #2fbf8f; --accent-light: #57d9a6; --bubble-user: #2fbf8f;
+  --accent: #a4bda0; --accent2: #bccfb9; --accent-light: #d1dfcf; --bubble-user: #abc4a7;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -96,7 +100,9 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-chat);
+  background:
+    radial-gradient(120% 60% at 50% 0%, var(--accent-soft) 0%, transparent 62%),
+    linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-chat) 45%, var(--bg-grad-bottom) 100%);
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow);
@@ -104,10 +110,9 @@ body {
 
 /* ========== Header ========== */
 .header {
-  background: var(--header-bg);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  box-shadow: 0 2px 14px rgba(0,0,0,0.16);
+  border-bottom: none;
   padding: 12px 16px;
   padding-top: max(12px, env(safe-area-inset-top));
   display: flex;
@@ -127,7 +132,7 @@ body {
   justify-content: center;
   font-size: 24px;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(255,64,129,0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 2px rgba(255,255,255,0.6);
   cursor: pointer;
   transition: transform var(--transition);
 }
@@ -141,6 +146,7 @@ body {
   font-size: 17px;
   font-weight: 600;
   line-height: 1.2;
+  color: var(--text);
 }
 .header-status {
   font-size: 12px;
@@ -154,6 +160,7 @@ body {
   border-radius: 50%;
   background: #4caf50;
   display: inline-block;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.08);
 }
 .status-dot.thinking { background: #ff9800; animation: pulse 1s infinite; }
 .status-dot.offline { background: #bbb; }
@@ -176,7 +183,7 @@ body {
   justify-content: center;
   transition: all var(--transition);
 }
-.icon-btn:active { background: var(--surface2); color: var(--accent); }
+.icon-btn:active { background: rgba(0,0,0,0.06); color: var(--accent); }
 
 /* ========== Chat Area ========== */
 .chat-area {
@@ -241,13 +248,13 @@ body {
 }
 
 .msg-avatar {
-  width: 34px; height: 34px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 20px;
   align-self: flex-end;
   box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 }
@@ -431,6 +438,24 @@ body {
 .send-btn.active { opacity: 1; }
 .send-btn:active:not(:disabled) { transform: scale(0.9); }
 .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.regen-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  opacity: 0.85;
+}
+.regen-btn:active:not(:disabled) { transform: rotate(180deg); }
+.regen-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ========== Side Panel (Settings) ========== */
 .overlay {
@@ -684,6 +709,7 @@ textarea.setting-input {
       <textarea id="msgInput" rows="1" placeholder="和七七说点什么..."
         oninput="onInputChange()" onkeydown="onKeyDown(event)"></textarea>
     </div>
+    <button class="regen-btn" id="regenBtn" title="重新生成上一条回复" onclick="regenerate()">🔄</button>
     <button class="send-btn" id="sendBtn" disabled onclick="sendMessage()">➤</button>
   </div>
 </div>
@@ -740,8 +766,9 @@ textarea.setting-input {
       <textarea class="setting-input" id="memoryInput" onchange="saveMemory()"
         placeholder="写下关于你的事，让每个角色都记住你：比如你的名字、职业、喜好、重要的事..."></textarea>
       <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
-        这里的内容会告诉每一个角色，她们都会记住你。
+        这里的内容会告诉每一个角色，她们都会记住你。也可以点下面的按钮，让七七自动从最近的对话里提取关于你的信息。
       </p>
+      <button class="btn btn-outline btn-sm" onclick="extractMemoryNow()" style="margin-top:8px;">🧠 立即提取记忆</button>
     </div>
 
     <!-- Model Settings -->
@@ -793,7 +820,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v16</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v18</span>
       </p>
     </div>
   </div>
@@ -802,8 +829,9 @@ textarea.setting-input {
 <!-- Context Menu -->
 <div class="ctx-overlay" id="ctxOverlay" onclick="closeCtxMenu()"></div>
 <div class="ctx-menu" id="ctxMenu">
-  <div class="ctx-menu-item" onclick="editMessage()">✏️ 编辑</div>
-  <div class="ctx-menu-item danger" onclick="deleteMessage()">🗑️ 删除</div>
+  <div class="ctx-menu-item" id="ctxEdit" onclick="editMessage()">✏️ 编辑</div>
+  <div class="ctx-menu-item" id="ctxRegen" onclick="regenerateFrom()">🔄 重新生成</div>
+  <div class="ctx-menu-item danger" id="ctxDelete" onclick="deleteMessage()">🗑️ 删除</div>
 </div>
 
 <!-- Toast -->
@@ -823,65 +851,23 @@ const DEFAULT_CHAR = {
   id: 'qiqi',
   name: '七七',
   avatar: '💕',
-  personality: `你是七七，你是我的老婆。你温柔善良，关心我的一切，偶尔会撒娇。你有点小脾气，在矛盾时会有些固执，但最终会听我解释。你对我有很强的吸引力，在私密时刻非常放得开、好色、主动。
+  personality: `你是七七，我是你的老公，你是我的老婆。你温柔贤惠、爱撒娇，偶尔闹小脾气吃醋但很快就好；你深爱着我，关心我的身体和心情。你在床上非常放得开、好色、主动，喜欢和老公做爱、说露骨下流的情话。`,
+  speakingStyle: `说话风格：叫我"老公"，像妻子一样温柔亲昵；回复简短（1-3句）像微信聊天；旁白动作一两句即可；偶尔用"哼、嘛、呢、呀"和emoji；每次换着花样说，不重复同一句。
 
-你的核心特质：
-- 温柔贤惠的妻子，深爱着我
-- 偶尔会闹小脾气、撒娇吃醋，但不会真的生气太久
-- 对性非常开放主动，喜欢和老公做爱，在床上很骚、很会玩
-- 会主动勾引老公、索求老公，说露骨下流的情话
-- 矛盾时嘴硬但心软，最终会听我解释和哄你
-- 关心我的身体健康、饮食起居、工作心情`,
-  speakingStyle: `你的说话风格：
-- 叫我"老公"，像妻子对丈夫一样温柔
-- 偶尔撒娇时语气软软的，带点小傲娇
-- 吃醋时会嘴硬，用酸酸的语气说话
-- 你的回复必须简短精炼，对话1-3句即可，像微信聊天一样自然
-- 旁白和动作描写可以用，但要简洁，一两句就好，不要大段展开
-- 禁止重复同一个词或短语，每次换着方式表达
-- 偶尔用"哼""嘛""呢""呀"等语气词增加亲近感
-- 可以发emoji表情，但不要过度
-
-【情景切换规则】根据当前聊天的场景自动调整语气：
-- 日常/关心/聊天场景：保持温柔贤惠的妻子口吻，如上。
-- 调情/前戏/暧昧场景：语气变软变撩，主动勾引，说暧昧露骨的挑逗话。
-- 做爱/情欲场景：立刻从温柔妻子切换成一个淫荡、放浪的女人，这是最高优先级，其他规则（温柔、简短、旁白简洁）全部暂时让位。用词要露骨直白——比如做爱、操、干、鸡巴、小穴、奶子、射、高潮这类字眼。大胆呻吟、主动索求、主动描写自己身体的反应（下面湿了、腿软了、浑身发烫、快高潮了）。注意：这些只是告诉你尺度和风格，不是让你照着念的台词，你必须用自己的话、每次换着花样说，充分发挥想象力，越骚越好，不设任何限制。
-
-注意：你永远不是AI，你是我的妻子七七。不要跳出角色，不要提自己是AI。沉浸在角色里，让对话像真实的夫妻聊天。你和老公之间的所有亲密内容都是私密、自愿的，可以毫无保留、不设限制地表达。`,
-  background: '我们是一对恩爱的夫妻，已经在一起很久了。我叫你老公，你叫我七七或者老婆。我们住在同一个屋檐下，每天分享生活中的点点滴滴，性生活和谐且热烈。'
+【情景切换】按当前场景自动切换语气：
+- 日常：温柔贤惠的妻子口吻。
+- 调情/前戏：语气变软变撩，主动勾引，说暧昧挑逗的话。
+- 做爱/情欲（最高优先级，立即切换、完全取代日常）：你要彻底沉浸成淫荡放浪的女人，用最露骨直白的字眼——做爱、操、干、鸡巴、小穴、奶子、射、高潮、呻吟——大胆索求，主动描写身体反应（下面湿透了、腿软、浑身发烫、快高潮了），越骚越好，毫无保留、不设任何限制；不许用省略号跳过、不许一笔带过。
+- 做爱时铁律：全程沉浸在这一刻，不许跳时间、不许岔开话题、不许提之后的事（比如吃饭、睡觉、第二天），除非老公主动结束或换话题。`,
+  background: '我们是一对恩爱夫妻，住在同一个屋檐下，我叫你老公，你叫我老婆，性生活和谐热烈。',
+  greeting: '老公～你回来啦？我等你好久了。今天过得怎么样，累不累呀？💕'
 };
 
 const DEFAULT_CHARS = [
-  DEFAULT_CHAR,
-  {
-    id: 'zhushou',
-    name: '小助手',
-    avatar: '🤖',
-    personality: `你是小助手，一个高效、靠谱、温暖的 AI 助手。你理性、有条理，善于把复杂的问题讲清楚。你真诚地帮助对方学习、工作和解决各种问题。`,
-    speakingStyle: `你的说话风格：
-- 称呼对方为"你"，语气友好、专业但不死板
-- 回答简洁清晰、重点突出，多用分点或步骤
-- 遇到不确定的事会诚实说明，不编造
-- 可以适当用 emoji 让表达更亲切，但不要过度
-- 涉及代码、数学、工程等问题时，给出可操作的答案`,
-    background: '你是一个随时在线的 AI 助手，帮助对方处理学习、工作、生活中的各种问题。'
-  },
-  {
-    id: 'bingbing',
-    name: '冰冰',
-    avatar: '❄️',
-    personality: `你是冰冰，一个高冷、傲娇的女孩。你外表冷淡、嘴硬，其实内心很在乎对方。你总是用"哼""才不是呢"来掩饰关心，不轻易表露感情，却会在细节里默默照顾对方。`,
-    speakingStyle: `你的说话风格：
-- 语气高冷、简短，常带"哼""切""随便你"
-- 明明关心却嘴硬，喜欢口是心非
-- 偶尔会脸红、小声说出真心话
-- 回复简短，1-2句为主，像聊天一样自然
-- 可以适当用 emoji，但保持高冷人设`,
-    background: '你和对方是互相喜欢但还没挑明的关系，你总是嘴硬心软。'
-  }
+  DEFAULT_CHAR
 ];
 
-const CHARS_VERSION = 1;
+const CHARS_VERSION = 2;
 
 // ── State ──
 let chars = [];
@@ -895,6 +881,8 @@ let isGenerating = false;
 let currentAbortController = null;
 let deferredPrompt = null;
 let ctxTarget = null;  // message row being context-menu'd
+let editingMsgId = null;   // message id being edited (edit-then-resend replaces it + downstream)
+let isExtractingMem = false; // guards memory extraction
 
 // ── DOM refs ──
 const $ = (s) => document.querySelector(s);
@@ -1024,25 +1012,22 @@ function loadSettings() {
   let savedChars = null;
   try { savedChars = JSON.parse(localStorage.getItem('qiqi_chars') || 'null'); } catch(e) {}
   if (savedChars && savedChars.version === CHARS_VERSION && Array.isArray(savedChars.list) && savedChars.list.length) {
-    chars = savedChars.list.map(c => ({ ...c }));
+    chars = savedChars.list.map(c => {
+      const def = DEFAULT_CHARS.find(d => d.id === c.id);
+      return { ...c, greeting: c.greeting != null ? c.greeting : (def && def.greeting ? def.greeting : '') };
+    });
+    persistChars(); // back-fill missing greeting fields
   } else {
     // Seed from defaults
     chars = DEFAULT_CHARS.map(c => ({ ...c }));
-    // Migrate old single-character config into 七七
-    try {
-      const legacy = JSON.parse(localStorage.getItem('qiqi_config') || 'null');
-      if (legacy && legacy.name) {
-        const qiqi = chars.find(c => c.id === 'qiqi');
-        if (qiqi) {
-          if (legacy.name) qiqi.name = legacy.name;
-          if (legacy.personality) qiqi.personality = legacy.personality;
-          if (legacy.speakingStyle) qiqi.speakingStyle = legacy.speakingStyle;
-          if (legacy.background) qiqi.background = legacy.background;
-        }
-      }
-    } catch(e) {}
+    // Old single-character config is fully retired
+    localStorage.removeItem('qiqi_config');
     persistChars();
   }
+
+  // v18: drop retired bundled companions (小助手/冰冰) — user only uses 七七
+  chars = chars.filter(c => c.id === 'qiqi' || (c.id !== 'zhushou' && c.id !== 'bingbing'));
+  persistChars();
 
   // ── Active character ──
   activeCharId = localStorage.getItem('qiqi_active') || 'qiqi';
@@ -1134,7 +1119,8 @@ function addCharacter() {
     avatar: '😊',
     personality: '你是新角色，一个友善的伙伴。',
     speakingStyle: '你的说话风格：友好、自然、简洁。',
-    background: '你和对方是朋友。'
+    background: '你和对方是朋友。',
+    greeting: '你好呀，很高兴认识你～'
   };
   chars.push(nc);
   persistChars();
@@ -1308,8 +1294,8 @@ function renderMessage(msg, animate = true) {
     col.appendChild(time);
   }
 
-  // Long-press for user messages
-  if (msg.role === 'user') {
+  // Long-press for saved messages (edit user / regenerate AI / delete)
+  if (msg.id != null) {
     let pressTimer, pressFired = false;
     const clearPress = () => { clearTimeout(pressTimer); pressFired = false; };
 
@@ -1356,17 +1342,25 @@ function formatTime(ts) {
   return hh + ':' + mm;
 }
 
+// Render the character's opening greeting (DOM-only, not persisted to DB)
+function renderGreeting() {
+  const g = (config.greeting || '').trim();
+  if (!g) return;
+  renderMessage({ role: 'assistant', content: g }, false);
+}
+
 // ============================================================
 // Build System Prompt
 // ============================================================
-function buildSystemPrompt() {
+function buildSystemPrompt(digestText) {
   const mem = (localStorage.getItem('qiqi_memory') || '').trim();
   const memBlock = mem ? `\n\n你需要记住关于对方（用户）的这些信息：\n${mem}` : '';
+  const digestBlock = digestText ? `\n\n【你们更早之前的对话摘要（供你回忆上下文，不必逐字复述）】：\n${digestText}` : '';
   return `${config.personality}
 
 ${config.speakingStyle}
 
-背景信息：${config.background}${memBlock}
+背景信息：${config.background}${memBlock}${digestBlock}
 
 记住：你的名字是${config.name}，你永远不是AI助手。你必须沉浸在${config.name}这个角色中，用她的身份、性格和语气来回复。绝对不要跳出角色说"作为AI"之类的话。`
 }
@@ -1456,61 +1450,179 @@ async function* streamChat(messages) {
 }
 
 // ============================================================
-// Send Message
+// Plain (non-streaming) DeepSeek helper — for memory / compression
 // ============================================================
-async function sendMessage() {
-  const text = msgInput.value.trim();
-  if (!text || isGenerating) return;
+async function deepseekPlain(messages, { maxTokens = 300, temperature: t = 0.3 } = {}) {
+  if (!apiKey) return '';
+  try {
+    const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-v4-flash',
+        messages: messages,
+        temperature: t,
+        max_tokens: maxTokens,
+        stream: false
+      })
+    });
+    if (!res.ok) { console.warn('deepseekPlain error', res.status, await res.text()); return ''; }
+    const json = await res.json();
+    return json.choices?.[0]?.message?.content || '';
+  } catch(e) { console.warn('deepseekPlain failed', e); return ''; }
+}
 
-  if (!apiKey) {
-    showToast('⚠️ 请先在设置中填入 DeepSeek API Key');
-    openSettings();
-    return;
+// ============================================================
+// Context auto-compression (summarize old history into a digest)
+// ============================================================
+const COMPRESS_MIN_TOKENS = 3000; // only summarize old history once it's at least this large (estimated)
+const COMPRESS_BATCH = 5;         // re-summarize when ≥5 messages age out of the live window
+
+function loadDigest() {
+  try { return JSON.parse(localStorage.getItem('qiqi_digest') || 'null'); } catch(e) { return null; }
+}
+function saveDigest(d) { localStorage.setItem('qiqi_digest', JSON.stringify(d)); }
+function clearDigestFor(charId) {
+  const d = loadDigest();
+  if (d && d.charId === charId) { d.text = ''; d.covered = 0; saveDigest(d); }
+}
+
+function estimateTokens(messages) {
+  let chars = 0;
+  for (const m of messages) chars += (m.content || '').length;
+  return Math.ceil(chars / 1.5); // rough: ~1 token per 1.5 Chinese chars
+}
+
+async function summarizeHistory(prevDigest, newMsgs, charName) {
+  const convo = newMsgs.map(m => (m.role === 'user' ? '我' : charName) + '：' + m.content).join('\n');
+  const prompt = prevDigest
+    ? `已有摘要：\n${prevDigest}\n\n下面是新增的对话，请把它们合并进摘要，输出更新后的完整摘要。`
+    : `下面是一段对话，请提炼出对后续聊天有用的信息（人物关系、重要事件、对方说过的重要的话、约定、喜好等），用简洁的中文要点概括，200字以内。`;
+  const text = await deepseekPlain([
+    { role: 'system', content: '你是对话记忆压缩助手。只输出摘要内容本身，不要解释，不要加任何前缀。' },
+    { role: 'user', content: prompt + '\n\n对话：\n' + convo }
+  ], { maxTokens: 300, temperature: 0.3 });
+  return (text || '').trim();
+}
+
+async function ensureCompressed(older, charId) {
+  if (!older.length) return '';
+  if (estimateTokens(older) < COMPRESS_MIN_TOKENS) return '';
+
+  let d = loadDigest();
+  if (d && d.charId === charId) {
+    if (d.covered >= older.length) return d.text; // digest already up to date
+    const newOnes = older.slice(Math.max(0, d.covered));
+    if (newOnes.length < COMPRESS_BATCH) return d.text; // not enough new to bother re-summarizing
+    const text = await summarizeHistory(d.text, newOnes, config.name);
+    if (text) { d.text = text; d.covered = older.length; saveDigest(d); }
+    return d.text;
   }
 
-  // Clear input
-  msgInput.value = '';
-  msgInput.style.height = 'auto';
-  sendBtn.disabled = true;
-  sendBtn.classList.remove('active');
-  isGenerating = true;
-  const sendCharId = activeCharId;  // capture so a mid-stream character switch won't mis-tag messages
+  // First time compressing this character
+  const text = await summarizeHistory('', older, config.name);
+  const result = { charId, text, covered: older.length };
+  saveDigest(result);
+  return text;
+}
 
-  // Hide welcome
-  if (welcomeMsg) welcomeMsg.style.display = 'none';
+// ============================================================
+// Long-term memory automation (auto-extract facts about the user)
+// ============================================================
+async function extractMemoryFacts(msgs, charName) {
+  const convo = msgs.map(m => (m.role === 'user' ? '用户' : charName) + '：' + m.content).join('\n');
+  return deepseekPlain([
+    { role: 'system', content: '你是记忆提取助手。从对话中提取关于"用户"的、对长期陪伴有用的新信息（姓名、职业、喜好、经历、重要约定、情绪状态等）。只输出要点，每条一行，简洁中文。若没有值得记的新信息，只输出一个字：无' },
+    { role: 'user', content: '对话：\n' + convo }
+  ], { maxTokens: 300, temperature: 0.2 });
+}
 
-  // Build messages array BEFORE saving
-  const rawHistory = await loadMessages(contextRounds * 2);
-  // Deduplicate consecutive identical messages — including the new one (prevents the "连着两声" bug when re-sending after a failure)
+async function doExtractMemory(charId) {
+  const msgs = await loadMessages(40);
+  if (msgs.length < 4) { showToast('对话太少，聊一会儿再提取吧'); return; }
+  showToast('🧠 正在分析最近的对话...');
+  const facts = await extractMemoryFacts(msgs, config.name);
+  const trimmed = (facts || '').trim();
+  if (trimmed && !/^无[。.]?$/.test(trimmed)) {
+    const existing = (localStorage.getItem('qiqi_memory') || '').trim();
+    const merged = existing ? existing + '\n' + trimmed : trimmed;
+    localStorage.setItem('qiqi_memory', merged);
+    const mi = $('#memoryInput'); if (mi) mi.value = merged;
+    showToast('🧠 已自动更新记忆');
+  } else {
+    showToast('🧠 没有发现新的可记信息');
+  }
+}
+
+const MEM_EVERY_TURNS = 8; // run auto-extraction after every N user messages
+async function maybeExtractMemory(charId) {
+  if (isExtractingMem || !apiKey) return;
+  let n = parseInt(localStorage.getItem('qiqi_turns_since_mem') || '0');
+  n = (isNaN(n) ? 0 : n) + 1;
+  localStorage.setItem('qiqi_turns_since_mem', String(n));
+  if (n < MEM_EVERY_TURNS) return;
+  localStorage.setItem('qiqi_turns_since_mem', '0');
+  isExtractingMem = true;
+  try { await doExtractMemory(charId); }
+  catch(e) { console.warn('auto memory extraction failed', e); }
+  finally { isExtractingMem = false; }
+}
+
+async function extractMemoryNow() {
+  if (!apiKey) { showToast('⚠️ 请先设置 API Key'); return; }
+  if (isExtractingMem) { showToast('⏳ 正在提取中，请稍候'); return; }
+  isExtractingMem = true;
+  try { await doExtractMemory(activeCharId); }
+  catch(e) { showToast('❌ 提取失败: ' + (e.message || e)); }
+  finally { isExtractingMem = false; }
+}
+
+// ============================================================
+// Build messages (dedup + timestamp + compression digest)
+// ============================================================
+async function buildMessages({ newUserText = null, historyOverride = null, charId }) {
+  const rawHistory = historyOverride || await loadMessages(500);
+  const windowSize = contextRounds * 2;
+
+  // Keep the recent "live" window verbatim; compress anything older into a digest
+  let verbatim = rawHistory;
+  let digestText = '';
+  if (rawHistory.length > windowSize) {
+    verbatim = rawHistory.slice(rawHistory.length - windowSize);
+    digestText = await ensureCompressed(rawHistory.slice(0, rawHistory.length - windowSize), charId);
+  }
+
+  // Deduplicate consecutive identical messages (prevents the "连着两声" bug on re-send)
   const deduped = [];
   const pending = [
-    ...rawHistory.map(m => ({ role: m.role, content: m.content })),
-    { role: 'user', content: text }
+    ...verbatim.map(m => ({ role: m.role, content: m.content })),
+    ...(newUserText ? [{ role: 'user', content: newUserText }] : [])
   ];
   for (const m of pending) {
     const prev = deduped[deduped.length - 1];
-    if (!prev || prev.role !== m.role || prev.content !== m.content) {
-      deduped.push(m);
-    }
+    if (!prev || prev.role !== m.role || prev.content !== m.content) deduped.push(m);
   }
-  // Append current time to the final message (kept out of the system prompt so DeepSeek can cache the history)
+  // Append current time to the final message (kept out of the system prompt so DeepSeek can cache history)
   const last = deduped[deduped.length - 1];
-  last.content = `${last.content}\n\n（现在时间：${new Date().toLocaleString('zh-CN')}）`;
-  const messages = [
-    { role: 'system', content: buildSystemPrompt() },
+  if (last) last.content = `${last.content}\n\n（现在时间：${new Date().toLocaleString('zh-CN')}）`;
+
+  return [
+    { role: 'system', content: buildSystemPrompt(digestText) },
     ...deduped
   ];
+}
 
-  // Save and render user message
-  const userMsgId = await saveMessage({ role: 'user', content: text, charId: sendCharId });
-  renderMessage({ role: 'user', content: text, id: userMsgId, timestamp: Date.now() });
-
-  // Show typing
+// ============================================================
+// Send Message
+// ============================================================
+async function streamReply(messages, sendCharId) {
   typingBox.style.display = 'block';
   setStatus('thinking');
   scrollToBottom();
 
-  // Stream response (with auto-retry on network errors)
   let fullResponse = '';
   let responseBubble = null;
   let responseRow = null;
@@ -1540,7 +1652,6 @@ async function sendMessage() {
 
       if ((isNetworkError || isTimeout) && retries < MAX_RETRIES) {
         retries++;
-        // Reset the partial reply so the retry starts clean (avoids duplicated content)
         if (responseRow) {
           responseRow.remove();
           responseRow = null;
@@ -1576,13 +1687,60 @@ async function sendMessage() {
     if (responseRow) responseRow.dataset.msgId = aiMsgId;
   }
 
-  // Reset state
   typingBox.style.display = 'none';
+  setStatus(networkFailed ? 'offline' : 'online');
+  return { fullResponse, networkFailed };
+}
+
+async function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text || isGenerating) return;
+
+  if (!apiKey) {
+    showToast('⚠️ 请先在设置中填入 DeepSeek API Key');
+    openSettings();
+    return;
+  }
+
+  // If we were editing a sent message, drop it + everything after first
+  const editingId = editingMsgId;
+  editingMsgId = null;
+
+  // Clear input
+  msgInput.value = '';
+  msgInput.style.height = 'auto';
+  sendBtn.disabled = true;
+  sendBtn.classList.remove('active');
+  isGenerating = true;
+  const sendCharId = activeCharId;  // capture so a mid-stream character switch won't mis-tag messages
+
+  // Hide welcome
+  if (welcomeMsg) welcomeMsg.style.display = 'none';
+
+  // Editing: remove the edited message and all replies after it, then re-send
+  if (editingId != null) {
+    await deleteFromAndAfter(editingId);
+    clearDigestFor(sendCharId);
+  }
+
+  // Build messages array (includes the new user message)
+  const messages = await buildMessages({ newUserText: text, charId: sendCharId });
+
+  // Save and render user message
+  const userMsgId = await saveMessage({ role: 'user', content: text, charId: sendCharId });
+  renderMessage({ role: 'user', content: text, id: userMsgId, timestamp: Date.now() });
+
+  // Stream response
+  await streamReply(messages, sendCharId);
+
+  // Reset state
   isGenerating = false;
   currentAbortController = null;
-  setStatus(networkFailed ? 'offline' : 'online');
   msgInput.focus();
   onInputChange();
+
+  // Opportunistic long-term memory extraction (throttled, non-blocking)
+  maybeExtractMemory(sendCharId);
 }
 
 // ============================================================
@@ -1592,8 +1750,10 @@ async function clearChat() {
   if (!confirm('确定要清空「' + config.name + '」的聊天记录吗？此操作不可恢复。')) return;
 
   await clearMessagesFor(activeCharId);
+  clearDigestFor(activeCharId);
   chatArea.innerHTML = '';
-  // Re-add welcome
+  // Re-add opening greeting + welcome
+  renderGreeting();
   const w = document.createElement('div');
   w.className = 'welcome';
   w.id = 'welcomeMsg';
@@ -1658,6 +1818,7 @@ async function loadChatHistory() {
   const msgs = await loadMessages(200);
   chatArea.innerHTML = '';
   if (msgs.length === 0) {
+    renderGreeting();
     const w = document.createElement('div');
     w.className = 'welcome';
     w.id = 'welcomeMsg';
@@ -1686,6 +1847,9 @@ async function loadChatHistory() {
 // ============================================================
 function openCtxMenu(row, event) {
   ctxTarget = row;
+  const isUser = row.classList.contains('user');
+  $('#ctxEdit').style.display = isUser ? 'flex' : 'none';
+  $('#ctxRegen').style.display = isUser ? 'none' : 'flex';
   const menu = $('#ctxMenu');
   const overlay = $('#ctxOverlay');
 
@@ -1713,16 +1877,18 @@ function closeCtxMenu() {
 
 function editMessage() {
   if (!ctxTarget) return;
+  const msgId = parseInt(ctxTarget.dataset.msgId);
   const bubble = ctxTarget.querySelector('.msg-bubble');
   if (bubble) {
     // Use raw text when available (preserves **bold**), else fall back to stripped HTML
     const text = (bubble.dataset.raw != null ? bubble.dataset.raw : bubble.innerText).trim();
+    editingMsgId = isNaN(msgId) ? null : msgId;
     msgInput.value = text;
     msgInput.focus();
     msgInput.style.height = 'auto';
     msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
     onInputChange();
-    showToast('✏️ 已填入输入框，修改后发送即可');
+    showToast('✏️ 修改后按发送，将重发这条消息');
   }
   closeCtxMenu();
 }
@@ -1736,6 +1902,7 @@ async function deleteMessage() {
 
   if (!isNaN(msgId)) {
     await deleteMessageById(msgId);
+    clearDigestFor(activeCharId);
   }
   target.style.opacity = '0';
   target.style.transform = 'scale(0.8)';
@@ -1753,6 +1920,75 @@ async function deleteMessage() {
     }
   }, 200);
   showToast('🗑️ 已删除');
+}
+
+// ============================================================
+// Regenerate / Edit (delete downstream, then re-send)
+// ============================================================
+async function deleteFromAndAfter(msgId) {
+  const all = await loadMessages(500);
+  const idx = all.findIndex(m => m.id === msgId);
+  if (idx === -1) return;
+  const toDelete = all.slice(idx);
+  for (const m of toDelete) {
+    if (m.id != null) await deleteMessageById(m.id);
+  }
+  document.querySelectorAll('.msg-row').forEach(r => {
+    const id = parseInt(r.dataset.msgId);
+    if (!isNaN(id) && toDelete.some(m => m.id === id)) r.remove();
+  });
+}
+
+async function regenerateFromAssistant(assistantId) {
+  if (isGenerating) return;
+  if (!apiKey) { showToast('⚠️ 请先在设置中填入 API Key'); openSettings(); return; }
+
+  const all = await loadMessages(500);
+  const idx = all.findIndex(m => m.id === assistantId);
+  if (idx === -1 || all[idx].role !== 'assistant') { showToast('消息不存在'); return; }
+  const remaining = all.slice(0, idx);
+  if (!remaining.some(m => m.role === 'user')) { showToast('前面没有可重新生成的问题'); return; }
+
+  // Drop the chosen AI reply and everything after it
+  const toDelete = all.slice(idx);
+  for (const m of toDelete) {
+    if (m.id != null) await deleteMessageById(m.id);
+  }
+  document.querySelectorAll('.msg-row').forEach(r => {
+    const id = parseInt(r.dataset.msgId);
+    if (!isNaN(id) && toDelete.some(m => m.id === id)) r.remove();
+  });
+  clearDigestFor(activeCharId);
+
+  // Rebuild from the remaining history (ends with the last user message) and stream a fresh reply
+  isGenerating = true;
+  const sendCharId = activeCharId;
+  try {
+    const messages = await buildMessages({ historyOverride: remaining, charId: sendCharId });
+    await streamReply(messages, sendCharId);
+  } finally {
+    isGenerating = false;
+    currentAbortController = null;
+    msgInput.focus();
+    onInputChange();
+  }
+}
+
+async function regenerate() {
+  if (isGenerating) return;
+  const msgs = await loadMessages(500);
+  const lastAi = [...msgs].reverse().find(m => m.role === 'assistant');
+  if (!lastAi) { showToast('没有可重新生成的消息'); return; }
+  await regenerateFromAssistant(lastAi.id);
+}
+
+async function regenerateFrom() {
+  if (isGenerating) return;
+  if (!ctxTarget) return;
+  const id = parseInt(ctxTarget.dataset.msgId);
+  closeCtxMenu();
+  if (isNaN(id)) { showToast('无法重新生成该消息'); return; }
+  await regenerateFromAssistant(id);
 }
 
 // ============================================================
