@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v26 rebuild -->
+<!-- v27 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -828,7 +828,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v26</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v27</span>
       </p>
     </div>
   </div>
@@ -1662,7 +1662,21 @@ async function streamReply(messages, sendCharId) {
         }
         partialShown = fullResponse;
       }
-      break; // Success, exit retry loop
+      // 成功收到流，但若内容为空（DeepSeek 偶尔吐空回复/被拦截），不能静默消失
+      if (fullResponse.trim()) {
+        break; // Real success, exit retry loop
+      }
+      if (retries < MAX_RETRIES) {
+        retries++;
+        fullResponse = '';
+        showToast(`⚠️ 七七没说出话来，自动重试中 (${retries}/${MAX_RETRIES})...`);
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      typingBox.style.display = 'none';
+      renderMessage({ role: 'assistant', content: '（七七刚才卡了一下，没说出话来，再发一次试试～）' });
+      setStatus('online');
+      return { fullResponse: '', networkFailed: false };
     } catch(e) {
       const msg = (e && e.message) || '';
       const isAbort = e && e.name === 'AbortError';
