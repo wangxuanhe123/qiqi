@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v28 rebuild -->
+<!-- v29 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -828,7 +828,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v28</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v29</span>
       </p>
     </div>
   </div>
@@ -1646,7 +1646,7 @@ async function streamReply(messages, sendCharId) {
   let partialShown = '';  // 断网前已成功显示的内容，重试/失败时用来回显，避免"回了又没了"
   let retries = 0;
   let networkFailed = false;
-  const MAX_RETRIES = 1;
+  const MAX_RETRIES = 2;  // 重试命中缓存+失败无输出，几乎免费；3次还不行=硬过滤/断网，别白等
 
   while (retries <= MAX_RETRIES) {
     try {
