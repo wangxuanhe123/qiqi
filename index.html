@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v27 rebuild -->
+<!-- v28 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -828,7 +828,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v27</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v28</span>
       </p>
     </div>
   </div>
@@ -1773,17 +1773,22 @@ async function sendMessage() {
   setStatus('thinking');
   scrollToBottom();
 
-  // Build messages array (includes the new user message)
-  const messages = await buildMessages({ newUserText: text, charId: sendCharId });
-
-  // Stream response
-  await streamReply(messages, sendCharId);
-
-  // Reset state
-  isGenerating = false;
-  currentAbortController = null;
-  msgInput.focus();
-  onInputChange();
+  // Build messages + stream reply，用 try/catch 兜底，任何异常都显示出来而不是静默
+  try {
+    const messages = await buildMessages({ newUserText: text, charId: sendCharId });
+    await streamReply(messages, sendCharId);
+  } catch (e) {
+    typingBox.style.display = 'none';
+    setStatus('online');
+    renderMessage({ role: 'assistant', content: `😢 出了点问题：${e.message || e}` });
+    showToast('发送失败: ' + (e.message || e));
+  } finally {
+    // 无论成败都复位，避免卡在"正在输入"或按钮一直灰着发不出去
+    isGenerating = false;
+    currentAbortController = null;
+    msgInput.focus();
+    onInputChange();
+  }
 
   // Opportunistic long-term memory extraction (throttled, non-blocking)
   maybeExtractMemory(sendCharId);
