@@ -851,7 +851,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v32</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v33</span>
       </p>
     </div>
   </div>
@@ -1322,10 +1322,19 @@ async function sayViaSiliconFlow(clean) {
         speed: 1,
       }),
     });
-    if (!res.ok) { sayViaBrowser(clean); return; }
+    if (!res.ok) {
+      let msg = '语音引擎请求失败(HTTP ' + res.status + ')';
+      try {
+        const j = await res.json();
+        if (j && j.message) msg += ': ' + j.message;
+      } catch(e) {}
+      showToast('⚠️ ' + msg + '，退回手机语音');
+      sayViaBrowser(clean);
+      return;
+    }
 
-    let blob = null;
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    let blob = null;
     if (contentType.includes('json')) {
       const j = await res.json();
       const b64 = (j.data && j.data.audio) || j.audio;
@@ -1335,9 +1344,14 @@ async function sayViaSiliconFlow(clean) {
         for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
         blob = new Blob([arr], { type: 'audio/mpeg' });
       }
+    } else {
+      blob = await res.blob();
     }
-    if (!blob) blob = await res.blob();
-    if (!blob || blob.size < 100) { sayViaBrowser(clean); return; }
+    if (!blob || blob.size < 100) {
+      showToast('⚠️ 语音引擎返回异常，退回手机语音');
+      sayViaBrowser(clean);
+      return;
+    }
 
     if (currentAudio) { try { currentAudio.pause(); currentAudio = null; } catch(e) {} }
     const url = URL.createObjectURL(blob);
@@ -1347,6 +1361,7 @@ async function sayViaSiliconFlow(clean) {
     audio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; };
     await audio.play();
   } catch(e) {
+    showToast('⚠️ 语音引擎出错，退回手机语音');
     sayViaBrowser(clean);
   }
 }
@@ -1461,23 +1476,31 @@ function renderMessage(msg, animate = true) {
 
   // Long-press for saved messages (edit user / regenerate AI / delete)
   if (msg.id != null) {
-    let pressTimer, pressFired = false;
+    let pressTimer, pressFired = false, startX = 0, startY = 0;
     const clearPress = () => { clearTimeout(pressTimer); pressFired = false; };
 
     bubble.addEventListener('touchstart', (e) => {
       pressFired = false;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      const cx = startX, cy = startY;
       pressTimer = setTimeout(() => {
         pressFired = true;
-        openCtxMenu(row, e);
+        openCtxMenu(row, cx, cy);
       }, 500);
     }, { passive: true });
     bubble.addEventListener('touchend', clearPress);
-    bubble.addEventListener('touchmove', clearPress);
+    bubble.addEventListener('touchmove', (e) => {
+      if (pressFired) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (dx * dx + dy * dy > 100) clearPress(); // 移动超 10px 才取消长按，避免手指轻微抖动误触
+    }, { passive: true });
     bubble.addEventListener('contextmenu', (e) => {
       if (pressFired) return; // already handled by touchstart timer
       e.preventDefault();
       clearPress();
-      openCtxMenu(row, e);
+      openCtxMenu(row, e.clientX, e.clientY);
     });
   }
 
@@ -2050,7 +2073,7 @@ async function loadChatHistory() {
 // ============================================================
 // Context Menu (long-press on messages)
 // ============================================================
-function openCtxMenu(row, event) {
+function openCtxMenu(row, x, y) {
   ctxTarget = row;
   const isUser = row.classList.contains('user');
   $('#ctxEdit').style.display = isUser ? 'flex' : 'none';
@@ -2058,9 +2081,11 @@ function openCtxMenu(row, event) {
   const menu = $('#ctxMenu');
   const overlay = $('#ctxOverlay');
 
-  // Position near the touch point
-  const x = event.touches ? event.touches[0].clientX : event.clientX;
-  const y = event.touches ? event.touches[0].clientY : event.clientY;
+  // Fallback position if coordinates not provided
+  if (x == null || y == null) {
+    x = window.innerWidth / 2;
+    y = window.innerHeight / 2;
+  }
 
   // Keep menu within viewport
   const menuW = 140; const menuH = 150;
