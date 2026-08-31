@@ -1,5 +1,5 @@
 // Service Worker for 七七 · AI伴侣
-const CACHE_NAME = 'qiqi-v26';
+const CACHE_NAME = 'qiqi-v27';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json'
