@@ -745,6 +745,25 @@ textarea.setting-input {
       </p>
     </div>
 
+    <!-- Voice Engine (open-source natural voice) -->
+    <div class="setting-group">
+      <label class="setting-label">🔊 语音引擎（可选，更自然有感情）</label>
+      <label style="font-size:13px;color:var(--text-secondary);">硅基流动 API Key</label>
+      <input class="setting-input" type="password" id="sfKeyInput"
+        placeholder="sk-xxxxxxxxxxxxxxxx（不填则用手机自带语音）"
+        onchange="saveSfKey()">
+      <label style="font-size:13px;color:var(--text-secondary);margin-top:8px;">音色</label>
+      <select class="setting-input" id="voiceNameSelect" onchange="saveVoiceName()">
+        <option value="bella">bella · 激情女声（娇媚）</option>
+        <option value="claire">claire · 温柔女声（甜美）</option>
+        <option value="diana">diana · 欢快女声</option>
+        <option value="anna">anna · 沉稳女声</option>
+      </select>
+      <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
+        在 <a href="https://cloud.siliconflow.cn" target="_blank" style="color:var(--accent)">cloud.siliconflow.cn</a> 免费注册领额度，音色接近真人、有感情。不填 key 则退回手机自带语音（较机械）。
+      </p>
+    </div>
+
     <!-- Character Switcher -->
     <div class="setting-group">
       <label class="setting-label">👥 角色</label>
@@ -832,7 +851,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v31</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v32</span>
       </p>
     </div>
   </div>
@@ -896,6 +915,9 @@ let temperature = 0.9;
 let contextRounds = 20;
 let voiceEnabled = false;
 let cachedVoices = [];
+let sfKey = '';
+let voiceName = 'bella';
+let currentAudio = null;
 let isGenerating = false;
 let currentAbortController = null;
 let deferredPrompt = null;
@@ -1059,6 +1081,8 @@ function loadSettings() {
   temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
   contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
   voiceEnabled = localStorage.getItem('qiqi_voice') === '1';
+  sfKey = localStorage.getItem('qiqi_sfkey') || '';
+  voiceName = localStorage.getItem('qiqi_voicename') || 'bella';
   const accent = localStorage.getItem('qiqi_accent') || 'pink';
 
   // ── Apply to UI ──
@@ -1068,6 +1092,8 @@ function loadSettings() {
   $('#charSpeaking').value = config.speakingStyle;
   $('#memoryInput').value = localStorage.getItem('qiqi_memory') || '';
   $('#apiKeyInput').value = apiKey;
+  $('#sfKeyInput').value = sfKey;
+  $('#voiceNameSelect').value = voiceName;
   $('#temperature').value = temperature;
   $('#contextRounds').value = contextRounds;
   if (voiceEnabled) $('#voiceToggle').classList.add('on');
@@ -1086,6 +1112,17 @@ function loadSettings() {
 function saveApiKey() {
   apiKey = $('#apiKeyInput').value.trim();
   localStorage.setItem('qiqi_apikey', apiKey);
+}
+
+function saveSfKey() {
+  sfKey = $('#sfKeyInput').value.trim();
+  localStorage.setItem('qiqi_sfkey', sfKey);
+}
+
+function saveVoiceName() {
+  voiceName = $('#voiceNameSelect').value;
+  localStorage.setItem('qiqi_voicename', voiceName);
+  showToast('🎙 音色已切换');
 }
 
 function persistChars() {
@@ -1235,18 +1272,27 @@ function toggleVoice() {
   else { try { speechSynthesis.cancel(); } catch(e) {} }
 }
 
-// ── 语音：浏览器自带 TTS，零成本，只念台词、跳过括号里的动作旁白 ──
+// ── 语音：优先硅基流动 CosyVoice2（自然有感情），没填 key 退回浏览器 TTS ──
+function cleanSpeakText(text) {
+  return (text || '')
+    .replace(/（[^）]*）/g, '')
+    .replace(/\([^)]*\)/g, '')
+    .replace(/\*\*/g, '')
+    .replace(/\n+/g, '，')
+    .trim();
+}
+
 function say(text) {
+  const clean = cleanSpeakText(text);
+  if (!clean) return;
+  try { speechSynthesis.cancel(); } catch(e) {}
+  if (sfKey) { sayViaSiliconFlow(clean); }
+  else { sayViaBrowser(clean); }
+}
+
+function sayViaBrowser(clean) {
   if (!('speechSynthesis' in window)) return;
   try {
-    const clean = (text || '')
-      .replace(/（[^）]*）/g, '')
-      .replace(/\([^)]*\)/g, '')
-      .replace(/\*\*/g, '')
-      .replace(/\n+/g, '，')
-      .trim();
-    if (!clean) return;
-    speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(clean);
     u.lang = 'zh-CN';
     u.rate = 0.95;
@@ -1256,6 +1302,53 @@ function say(text) {
     if (female) u.voice = female;
     speechSynthesis.speak(u);
   } catch(e) {}
+}
+
+async function sayViaSiliconFlow(clean) {
+  try {
+    const res = await fetch('https://api.siliconflow.cn/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + sfKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'FunAudioLLM/CosyVoice2-0.5B',
+        input: clean,
+        voice: 'FunAudioLLM/CosyVoice2-0.5B:' + voiceName,
+        response_format: 'mp3',
+        sample_rate: 32000,
+        stream: false,
+        speed: 1,
+      }),
+    });
+    if (!res.ok) { sayViaBrowser(clean); return; }
+
+    let blob = null;
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    if (contentType.includes('json')) {
+      const j = await res.json();
+      const b64 = (j.data && j.data.audio) || j.audio;
+      if (b64) {
+        const bin = atob(b64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        blob = new Blob([arr], { type: 'audio/mpeg' });
+      }
+    }
+    if (!blob) blob = await res.blob();
+    if (!blob || blob.size < 100) { sayViaBrowser(clean); return; }
+
+    if (currentAudio) { try { currentAudio.pause(); currentAudio = null; } catch(e) {} }
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    currentAudio = audio;
+    audio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; };
+    audio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; };
+    await audio.play();
+  } catch(e) {
+    sayViaBrowser(clean);
+  }
 }
 
 function speak(text) {  // 自动播报：受"语音回复"开关控制
