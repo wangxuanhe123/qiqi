@@ -851,7 +851,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v33</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v34</span>
       </p>
     </div>
   </div>
@@ -1282,11 +1282,19 @@ function cleanSpeakText(text) {
     .trim();
 }
 
+// ── 给 CosyVoice2 加情感/音效标记：笑声、拖长音变喘息，让语气有起伏 ──
+function addEmotionMarks(t) {
+  if (!t) return t;
+  t = t.replace(/(哈{2,}|嘻{2,}|呵{2,}|嘿{2,})/g, (m) => '<laughter>' + m + '</laughter>');
+  t = t.replace(/~/g, '[breath]');
+  return t;
+}
+
 function say(text) {
   const clean = cleanSpeakText(text);
   if (!clean) return;
   try { speechSynthesis.cancel(); } catch(e) {}
-  if (sfKey) { sayViaSiliconFlow(clean); }
+  if (sfKey) { sayViaSiliconFlow(addEmotionMarks(clean)); }
   else { sayViaBrowser(clean); }
 }
 
