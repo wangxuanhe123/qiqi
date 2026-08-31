@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v29 rebuild -->
+<!-- v30 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -803,6 +803,10 @@ textarea.setting-input {
         <span class="toggle-label">🌙 深色模式</span>
         <div class="toggle" id="darkToggle" onclick="toggleTheme()"></div>
       </div>
+      <div class="toggle-wrap" style="margin-top:12px;">
+        <span class="toggle-label">🔊 语音回复</span>
+        <div class="toggle" id="voiceToggle" onclick="toggleVoice()"></div>
+      </div>
       <div style="margin-top:12px;">
         <label style="font-size:13px;color:var(--text-secondary);">主题色</label>
         <div class="accent-swatches" style="margin-top:8px;">
@@ -828,7 +832,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v29</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v30</span>
       </p>
     </div>
   </div>
@@ -889,6 +893,8 @@ let apiKey = '';
 let darkMode = false;
 let temperature = 0.9;
 let contextRounds = 20;
+let voiceEnabled = false;
+let cachedVoices = [];
 let isGenerating = false;
 let currentAbortController = null;
 let deferredPrompt = null;
@@ -1051,6 +1057,7 @@ function loadSettings() {
   darkMode = localStorage.getItem('qiqi_dark') === '1';
   temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
   contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
+  voiceEnabled = localStorage.getItem('qiqi_voice') === '1';
   const accent = localStorage.getItem('qiqi_accent') || 'pink';
 
   // ── Apply to UI ──
@@ -1062,6 +1069,7 @@ function loadSettings() {
   $('#apiKeyInput').value = apiKey;
   $('#temperature').value = temperature;
   $('#contextRounds').value = contextRounds;
+  if (voiceEnabled) $('#voiceToggle').classList.add('on');
   headerName.textContent = config.name;
   headerAvatar.textContent = config.avatar;
   msgInput.placeholder = '和' + config.name + '说点什么...';
@@ -1215,6 +1223,45 @@ function toggleTheme() {
     $('#darkToggle').classList.remove('on');
   }
   localStorage.setItem('qiqi_dark', darkMode ? '1' : '0');
+}
+
+function toggleVoice() {
+  voiceEnabled = !voiceEnabled;
+  if (voiceEnabled) $('#voiceToggle').classList.add('on');
+  else $('#voiceToggle').classList.remove('on');
+  localStorage.setItem('qiqi_voice', voiceEnabled ? '1' : '0');
+  if (voiceEnabled) speak('语音开启啦，老公～');
+  else { try { speechSynthesis.cancel(); } catch(e) {} }
+}
+
+// ── 语音回复：浏览器自带 TTS，零成本，只念台词、跳过括号里的动作旁白 ──
+function speak(text) {
+  if (!voiceEnabled) return;
+  if (!('speechSynthesis' in window)) return;
+  try {
+    const clean = (text || '')
+      .replace(/（[^）]*）/g, '')
+      .replace(/\([^)]*\)/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/\n+/g, '，')
+      .trim();
+    if (!clean) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = 'zh-CN';
+    u.rate = 0.95;
+    u.pitch = 1.05;
+    const zh = cachedVoices.filter(v => (v.lang || '').toLowerCase().startsWith('zh'));
+    const female = zh.find(v => /女|female|xiaoxiao|huihui|yaoyao|tingting/i.test(v.name)) || zh[0];
+    if (female) u.voice = female;
+    speechSynthesis.speak(u);
+  } catch(e) {}
+}
+
+if ('speechSynthesis' in window) {
+  const refreshVoices = () => { cachedVoices = speechSynthesis.getVoices(); };
+  refreshVoices();
+  speechSynthesis.onvoiceschanged = refreshVoices;
 }
 
 // ============================================================
@@ -1726,6 +1773,7 @@ async function streamReply(messages, sendCharId) {
   if (fullResponse && !networkFailed) {
     const aiMsgId = await saveMessage({ role: 'assistant', content: fullResponse, charId: sendCharId });
     if (responseRow) responseRow.dataset.msgId = aiMsgId;
+    speak(fullResponse);  // 语音播报（设置里可开关，默认关）
   }
 
   typingBox.style.display = 'none';
