@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v30 rebuild -->
+<!-- v31 rebuild -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -832,7 +832,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v30</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v31</span>
       </p>
     </div>
   </div>
@@ -841,6 +841,7 @@ textarea.setting-input {
 <!-- Context Menu -->
 <div class="ctx-overlay" id="ctxOverlay" onclick="closeCtxMenu()"></div>
 <div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-menu-item" id="ctxSpeak" onclick="speakCurrent()">🔊 朗读</div>
   <div class="ctx-menu-item" id="ctxEdit" onclick="editMessage()">✏️ 编辑</div>
   <div class="ctx-menu-item" id="ctxRegen" onclick="regenerateFrom()">🔄 重新生成</div>
   <div class="ctx-menu-item danger" id="ctxDelete" onclick="deleteMessage()">🗑️ 删除</div>
@@ -1234,9 +1235,8 @@ function toggleVoice() {
   else { try { speechSynthesis.cancel(); } catch(e) {} }
 }
 
-// ── 语音回复：浏览器自带 TTS，零成本，只念台词、跳过括号里的动作旁白 ──
-function speak(text) {
-  if (!voiceEnabled) return;
+// ── 语音：浏览器自带 TTS，零成本，只念台词、跳过括号里的动作旁白 ──
+function say(text) {
   if (!('speechSynthesis' in window)) return;
   try {
     const clean = (text || '')
@@ -1256,6 +1256,19 @@ function speak(text) {
     if (female) u.voice = female;
     speechSynthesis.speak(u);
   } catch(e) {}
+}
+
+function speak(text) {  // 自动播报：受"语音回复"开关控制
+  if (!voiceEnabled) return;
+  say(text);
+}
+
+function speakCurrent() {  // 长按主动朗读：不看开关，点了就读
+  if (!ctxTarget) return;
+  const bubble = ctxTarget.querySelector('.msg-bubble');
+  const text = (bubble.dataset.raw != null ? bubble.dataset.raw : bubble.innerText).trim();
+  closeCtxMenu();
+  if (text) say(text);
 }
 
 if ('speechSynthesis' in window) {
@@ -1957,7 +1970,7 @@ function openCtxMenu(row, event) {
   const y = event.touches ? event.touches[0].clientY : event.clientY;
 
   // Keep menu within viewport
-  const menuW = 140; const menuH = 100;
+  const menuW = 140; const menuH = 150;
   let left = Math.min(x, window.innerWidth - menuW - 10);
   let top = y - menuH; // Show above touch point
   if (top < 60) top = y + 10; // Fallback: show below
