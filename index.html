@@ -745,22 +745,15 @@ textarea.setting-input {
       </p>
     </div>
 
-    <!-- Voice Engine (open-source natural voice) -->
+    <!-- Voice Engine (IndexTTS-2 clone voice) -->
     <div class="setting-group">
-      <label class="setting-label">🔊 语音引擎（可选，更自然有感情）</label>
-      <label style="font-size:13px;color:var(--text-secondary);">硅基流动 API Key</label>
+      <label class="setting-label">🔊 语音引擎（克隆少御音色）</label>
+      <label style="font-size:13px;color:var(--text-secondary);">模力方舟 API Key</label>
       <input class="setting-input" type="password" id="sfKeyInput"
-        placeholder="sk-xxxxxxxxxxxxxxxx（不填则用手机自带语音）"
+        placeholder="在 ai.gitee.com 申请（不填则用手机自带语音）"
         onchange="saveSfKey()">
-      <label style="font-size:13px;color:var(--text-secondary);margin-top:8px;">音色</label>
-      <select class="setting-input" id="voiceNameSelect" onchange="saveVoiceName()">
-        <option value="bella">bella · 激情女声（娇媚）</option>
-        <option value="claire">claire · 温柔女声（甜美）</option>
-        <option value="diana">diana · 欢快女声</option>
-        <option value="anna">anna · 沉稳女声</option>
-      </select>
       <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
-        在 <a href="https://cloud.siliconflow.cn" target="_blank" style="color:var(--accent)">cloud.siliconflow.cn</a> 免费注册领额度，音色接近真人、有感情。不填 key 则退回手机自带语音（较机械）。
+        音色已克隆为「少御」温柔成熟女声，说话自然有感情。不填 key 则退回手机自带语音（较机械）。
       </p>
     </div>
 
@@ -916,7 +909,6 @@ let contextRounds = 20;
 let voiceEnabled = false;
 let cachedVoices = [];
 let sfKey = '';
-let voiceName = 'bella';
 let currentAudio = null;
 let isGenerating = false;
 let currentAbortController = null;
@@ -1082,7 +1074,6 @@ function loadSettings() {
   contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
   voiceEnabled = localStorage.getItem('qiqi_voice') === '1';
   sfKey = localStorage.getItem('qiqi_sfkey') || '';
-  voiceName = localStorage.getItem('qiqi_voicename') || 'bella';
   const accent = localStorage.getItem('qiqi_accent') || 'pink';
 
   // ── Apply to UI ──
@@ -1093,7 +1084,6 @@ function loadSettings() {
   $('#memoryInput').value = localStorage.getItem('qiqi_memory') || '';
   $('#apiKeyInput').value = apiKey;
   $('#sfKeyInput').value = sfKey;
-  $('#voiceNameSelect').value = voiceName;
   $('#temperature').value = temperature;
   $('#contextRounds').value = contextRounds;
   if (voiceEnabled) $('#voiceToggle').classList.add('on');
@@ -1119,11 +1109,6 @@ function saveSfKey() {
   localStorage.setItem('qiqi_sfkey', sfKey);
 }
 
-function saveVoiceName() {
-  voiceName = $('#voiceNameSelect').value;
-  localStorage.setItem('qiqi_voicename', voiceName);
-  showToast('🎙 音色已切换');
-}
 
 function persistChars() {
   localStorage.setItem('qiqi_chars', JSON.stringify({ version: CHARS_VERSION, list: chars }));
@@ -1272,7 +1257,7 @@ function toggleVoice() {
   else { try { speechSynthesis.cancel(); } catch(e) {} }
 }
 
-// ── 语音：优先硅基流动 CosyVoice2（自然有感情），没填 key 退回浏览器 TTS ──
+// ── 语音：优先模力方舟 IndexTTS-2（克隆少御音色），没填 key 退回浏览器 TTS ──
 function cleanSpeakText(text) {
   return (text || '')
     .replace(/（[^）]*）/g, '')
@@ -1282,19 +1267,26 @@ function cleanSpeakText(text) {
     .trim();
 }
 
-// ── 给 CosyVoice2 加情感/音效标记：笑声、拖长音变喘息，让语气有起伏 ──
-function addEmotionMarks(t) {
-  if (!t) return t;
-  t = t.replace(/(哈{2,}|嘻{2,}|呵{2,}|嘿{2,})/g, (m) => '<laughter>' + m + '</laughter>');
-  t = t.replace(/~/g, '[breath]');
-  return t;
+// ── 按文本情绪选 emo_vector（8维：开心/生气/悲伤/恐惧/厌恶/忧郁/惊讶/平静），中性最像 ──
+function detectEmotion(t) {
+  if (!t) return null;
+  if (/开心|太好|好耶|哈哈|嘻嘻|惊喜|喜欢|爱你|抱抱|么么/.test(t)) {
+    return { vector: [0.6, 0, 0, 0, 0, 0, 0, 0.4], alpha: 0.5 };
+  }
+  if (/生气|讨厌|烦死|气死|不理你|混蛋|坏蛋|你怎么|滚/.test(t)) {
+    return { vector: [0, 0.5, 0, 0, 0, 0, 0, 0.5], alpha: 0.5 };
+  }
+  if (/天哪|居然|竟然|不会吧|真的假的|哇/.test(t)) {
+    return { vector: [0, 0, 0, 0, 0, 0, 0.6, 0.4], alpha: 0.5 };
+  }
+  return null;
 }
 
 function say(text) {
   const clean = cleanSpeakText(text);
   if (!clean) return;
   try { speechSynthesis.cancel(); } catch(e) {}
-  if (sfKey) { sayViaSiliconFlow(addEmotionMarks(clean)); }
+  if (sfKey) { sayViaIndexTTS(clean); }
   else { sayViaBrowser(clean); }
 }
 
@@ -1312,23 +1304,26 @@ function sayViaBrowser(clean) {
   } catch(e) {}
 }
 
-async function sayViaSiliconFlow(clean) {
+async function sayViaIndexTTS(clean) {
   try {
-    const res = await fetch('https://api.siliconflow.cn/v1/audio/speech', {
+    const payload = {
+      model: 'IndexTTS-2',
+      input: clean,
+      voice: 'alloy',
+      prompt_audio_url: 'https://cdn.jsdelivr.net/gh/wangxuanhe123/qiqi@master/ref_cn.mp3',
+      prompt_text: '看到我很惊讶吗？可是我真的找不到你，我好想见你啊我只能这样做了我知道我让你朋友骗你出来是我的错',
+      response_format: 'mp3',
+    };
+    const emo = detectEmotion(clean);
+    if (emo) { payload.emo_vector = emo.vector; payload.emo_alpha = emo.alpha; }
+
+    const res = await fetch('https://ai.gitee.com/v1/audio/speech', {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer ' + sfKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'FunAudioLLM/CosyVoice2-0.5B',
-        input: clean,
-        voice: 'FunAudioLLM/CosyVoice2-0.5B:' + voiceName,
-        response_format: 'mp3',
-        sample_rate: 32000,
-        stream: false,
-        speed: 1,
-      }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       let msg = '语音引擎请求失败(HTTP ' + res.status + ')';
