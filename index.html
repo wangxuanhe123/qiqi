@@ -844,7 +844,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v38</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v39</span>
       </p>
     </div>
   </div>
@@ -1296,9 +1296,10 @@ async function sayViaCosy(clean) {
       input: clean,
       references: [{
         audio: 'https://cdn.jsdelivr.net/gh/wangxuanhe123/qiqi@master/ref_cn.mp3',
-        text: '看到我很惊讶吗？可是我真的找不到你，我好想见你啊我只能这样做了我知道我让你朋友骗你出来是我的错'
+        text: '很惊讶吗？可是我真的找不到你呀，我好想见你啊，我只能这样做了。我知道我让你朋友骗你出来是我的错。'
       }],
       response_format: 'mp3',
+      speed: 1.1,
     };
 
     const res = await fetch('https://api.siliconflow.cn/v1/audio/speech', {
