@@ -745,19 +745,15 @@ textarea.setting-input {
       </p>
     </div>
 
-    <!-- Voice Engine (IndexTTS-2 clone voice) -->
+    <!-- Voice Engine (CosyVoice2 clone voice) -->
     <div class="setting-group">
       <label class="setting-label">🔊 语音引擎（克隆少御音色）</label>
-      <label style="font-size:13px;color:var(--text-secondary);">模力方舟 API Key</label>
+      <label style="font-size:13px;color:var(--text-secondary);">硅基流动 API Key</label>
       <input class="setting-input" type="password" id="sfKeyInput"
-        placeholder="在 ai.gitee.com 申请（不填则用手机自带语音）"
+        placeholder="在 cloud.siliconflow.cn 申请（不填则用手机自带语音）"
         onchange="saveSfKey()">
-      <label style="font-size:13px;color:var(--text-secondary);">中转地址（可选，手机语音慢时用）</label>
-      <input class="setting-input" type="text" id="proxyUrlInput"
-        placeholder="云函数 HTTPS 地址，留空则直连模力方舟"
-        onchange="saveProxyUrl()">
       <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
-        音色已克隆为「少御」温柔成熟女声，说话自然有感情。不填 key 则退回手机自带语音（较机械）。
+        用 CosyVoice2 克隆「少御」音色，约 4 秒出语音。不填 key 则退回手机自带语音（较机械）。
       </p>
     </div>
 
@@ -848,7 +844,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v37</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v38</span>
       </p>
     </div>
   </div>
@@ -913,7 +909,6 @@ let contextRounds = 20;
 let voiceEnabled = false;
 let cachedVoices = [];
 let sfKey = '';
-let proxyUrl = '';
 let currentAudio = null;
 let isGenerating = false;
 let currentAbortController = null;
@@ -1079,7 +1074,6 @@ function loadSettings() {
   contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
   voiceEnabled = localStorage.getItem('qiqi_voice') === '1';
   sfKey = localStorage.getItem('qiqi_sfkey') || '';
-  proxyUrl = localStorage.getItem('qiqi_proxyurl') || '';
   const accent = localStorage.getItem('qiqi_accent') || 'pink';
 
   // ── Apply to UI ──
@@ -1090,7 +1084,6 @@ function loadSettings() {
   $('#memoryInput').value = localStorage.getItem('qiqi_memory') || '';
   $('#apiKeyInput').value = apiKey;
   $('#sfKeyInput').value = sfKey;
-  $('#proxyUrlInput').value = proxyUrl;
   $('#temperature').value = temperature;
   $('#contextRounds').value = contextRounds;
   if (voiceEnabled) $('#voiceToggle').classList.add('on');
@@ -1114,11 +1107,6 @@ function saveApiKey() {
 function saveSfKey() {
   sfKey = $('#sfKeyInput').value.trim();
   localStorage.setItem('qiqi_sfkey', sfKey);
-}
-
-function saveProxyUrl() {
-  proxyUrl = $('#proxyUrlInput').value.trim();
-  localStorage.setItem('qiqi_proxyurl', proxyUrl);
 }
 
 
@@ -1269,7 +1257,7 @@ function toggleVoice() {
   else { try { speechSynthesis.cancel(); } catch(e) {} }
 }
 
-// ── 语音：优先模力方舟 IndexTTS-2（克隆少御音色），没填 key 退回浏览器 TTS ──
+// ── 语音：优先硅基流动 CosyVoice2（克隆少御音色），没填 key 退回浏览器 TTS ──
 function cleanSpeakText(text) {
   return (text || '')
     .replace(/（[^）]*）/g, '')
@@ -1279,26 +1267,11 @@ function cleanSpeakText(text) {
     .trim();
 }
 
-// ── 按文本情绪选 emo_vector（8维：开心/生气/悲伤/恐惧/厌恶/忧郁/惊讶/平静），中性最像 ──
-function detectEmotion(t) {
-  if (!t) return null;
-  if (/开心|太好|好耶|哈哈|嘻嘻|惊喜|喜欢|爱你|抱抱|么么/.test(t)) {
-    return { vector: [0.6, 0, 0, 0, 0, 0, 0, 0.4], alpha: 0.5 };
-  }
-  if (/生气|讨厌|烦死|气死|不理你|混蛋|坏蛋|你怎么|滚/.test(t)) {
-    return { vector: [0, 0.5, 0, 0, 0, 0, 0, 0.5], alpha: 0.5 };
-  }
-  if (/天哪|居然|竟然|不会吧|真的假的|哇/.test(t)) {
-    return { vector: [0, 0, 0, 0, 0, 0, 0.6, 0.4], alpha: 0.5 };
-  }
-  return null;
-}
-
 function say(text) {
   const clean = cleanSpeakText(text);
   if (!clean) return;
   try { speechSynthesis.cancel(); } catch(e) {}
-  if (sfKey) { sayViaIndexTTS(clean); }
+  if (sfKey) { sayViaCosy(clean); }
   else { sayViaBrowser(clean); }
 }
 
@@ -1316,21 +1289,19 @@ function sayViaBrowser(clean) {
   } catch(e) {}
 }
 
-async function sayViaIndexTTS(clean) {
+async function sayViaCosy(clean) {
   try {
     const payload = {
-      model: 'IndexTTS-2',
+      model: 'FunAudioLLM/CosyVoice2-0.5B',
       input: clean,
-      voice: 'alloy',
-      prompt_audio_url: 'https://cdn.jsdelivr.net/gh/wangxuanhe123/qiqi@master/ref_cn.mp3',
-      prompt_text: '看到我很惊讶吗？可是我真的找不到你，我好想见你啊我只能这样做了我知道我让你朋友骗你出来是我的错',
+      references: [{
+        audio: 'https://cdn.jsdelivr.net/gh/wangxuanhe123/qiqi@master/ref_cn.mp3',
+        text: '看到我很惊讶吗？可是我真的找不到你，我好想见你啊我只能这样做了我知道我让你朋友骗你出来是我的错'
+      }],
       response_format: 'mp3',
     };
-    const emo = detectEmotion(clean);
-    if (emo) { payload.emo_vector = emo.vector; payload.emo_alpha = emo.alpha; }
 
-    const ttsUrl = proxyUrl ? proxyUrl.replace(/\/+$/, '') : 'https://ai.gitee.com/v1/audio/speech';
-    const res = await fetch(ttsUrl, {
+    const res = await fetch('https://api.siliconflow.cn/v1/audio/speech', {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer ' + sfKey,
@@ -1349,21 +1320,7 @@ async function sayViaIndexTTS(clean) {
       return;
     }
 
-    const contentType = (res.headers.get('content-type') || '').toLowerCase();
-    let blob = null;
-    if (contentType.includes('json')) {
-      const j = await res.json();
-      const b64 = (j.data && j.data.audio) || j.audio;
-      if (b64) {
-        const bin = atob(b64);
-        const arr = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-        const mime = (j.data && j.data.content_type) || j.content_type || 'audio/mpeg';
-        blob = new Blob([arr], { type: mime });
-      }
-    } else {
-      blob = await res.blob();
-    }
+    const blob = await res.blob();
     if (!blob || blob.size < 100) {
       showToast('⚠️ 语音引擎返回异常，退回手机语音');
       sayViaBrowser(clean);
