@@ -752,6 +752,10 @@ textarea.setting-input {
       <input class="setting-input" type="password" id="sfKeyInput"
         placeholder="在 ai.gitee.com 申请（不填则用手机自带语音）"
         onchange="saveSfKey()">
+      <label style="font-size:13px;color:var(--text-secondary);">中转地址（可选，手机语音慢时用）</label>
+      <input class="setting-input" type="text" id="proxyUrlInput"
+        placeholder="云函数 HTTPS 地址，留空则直连模力方舟"
+        onchange="saveProxyUrl()">
       <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
         音色已克隆为「少御」温柔成熟女声，说话自然有感情。不填 key 则退回手机自带语音（较机械）。
       </p>
@@ -844,7 +848,7 @@ textarea.setting-input {
     <div class="setting-group" style="text-align:center;padding-top:8px;">
       <p style="font-size:12px;color:var(--text-secondary);">
         七七的私人小窝 · 数据全存本地 · 安心私密<br>
-        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v35</span>
+        Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v36</span>
       </p>
     </div>
   </div>
@@ -909,6 +913,7 @@ let contextRounds = 20;
 let voiceEnabled = false;
 let cachedVoices = [];
 let sfKey = '';
+let proxyUrl = '';
 let currentAudio = null;
 let isGenerating = false;
 let currentAbortController = null;
@@ -1074,6 +1079,7 @@ function loadSettings() {
   contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
   voiceEnabled = localStorage.getItem('qiqi_voice') === '1';
   sfKey = localStorage.getItem('qiqi_sfkey') || '';
+  proxyUrl = localStorage.getItem('qiqi_proxyurl') || '';
   const accent = localStorage.getItem('qiqi_accent') || 'pink';
 
   // ── Apply to UI ──
@@ -1084,6 +1090,7 @@ function loadSettings() {
   $('#memoryInput').value = localStorage.getItem('qiqi_memory') || '';
   $('#apiKeyInput').value = apiKey;
   $('#sfKeyInput').value = sfKey;
+  $('#proxyUrlInput').value = proxyUrl;
   $('#temperature').value = temperature;
   $('#contextRounds').value = contextRounds;
   if (voiceEnabled) $('#voiceToggle').classList.add('on');
@@ -1107,6 +1114,11 @@ function saveApiKey() {
 function saveSfKey() {
   sfKey = $('#sfKeyInput').value.trim();
   localStorage.setItem('qiqi_sfkey', sfKey);
+}
+
+function saveProxyUrl() {
+  proxyUrl = $('#proxyUrlInput').value.trim();
+  localStorage.setItem('qiqi_proxyurl', proxyUrl);
 }
 
 
@@ -1317,7 +1329,8 @@ async function sayViaIndexTTS(clean) {
     const emo = detectEmotion(clean);
     if (emo) { payload.emo_vector = emo.vector; payload.emo_alpha = emo.alpha; }
 
-    const res = await fetch('https://ai.gitee.com/v1/audio/speech', {
+    const ttsUrl = proxyUrl ? proxyUrl.replace(/\/+$/, '') : 'https://ai.gitee.com/v1/audio/speech';
+    const res = await fetch(ttsUrl, {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer ' + sfKey,
