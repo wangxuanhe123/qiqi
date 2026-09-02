@@ -123,9 +123,7 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(120% 60% at 50% 0%, var(--accent-soft) 0%, transparent 62%),
-    linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-chat) 45%, var(--bg-grad-bottom) 100%);
+  background: linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-chat) 45%, var(--bg-grad-bottom) 100%);
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow);
@@ -134,8 +132,8 @@ body {
 /* ========== Header ========== */
 .header {
   background: var(--header-bg);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 1px 0 var(--border);
   border-bottom: none;
   padding: 12px 16px;
@@ -445,8 +443,8 @@ body {
   padding: 10px 12px;
   padding-bottom: 10px;
   background: var(--header-bg);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
   display: flex;
   gap: 8px;
@@ -1047,7 +1045,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v40</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v41</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1222,7 +1220,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v40</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v41</span>
               </p>
             </div>
           </div>
