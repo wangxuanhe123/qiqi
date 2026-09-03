@@ -615,6 +615,8 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 50;
 }
+/* 键盘弹出时隐藏底部导航，避免被键盘顶起来 */
+body.keyboard-open .bottom-nav { display: none; }
 .nav-item {
   flex: 1;
   display: flex;
@@ -1045,7 +1047,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v42</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v43</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1220,7 +1222,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v42</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v43</span>
               </p>
             </div>
           </div>
@@ -2924,6 +2926,23 @@ function dismissInstall() {
   localStorage.setItem('qiqi_install_dismissed', '1');
 }
 
+// 检测软键盘弹出：弹出时隐藏底部导航，避免被键盘顶起来
+function initKeyboardDetection() {
+  let baseHeight = window.innerHeight;
+  const detect = () => {
+    const vv = window.visualViewport;
+    const visibleH = vv ? vv.height : window.innerHeight;
+    baseHeight = Math.max(baseHeight, window.innerHeight);
+    const keyboardOpen = visibleH < baseHeight * 0.85;
+    document.body.classList.toggle('keyboard-open', keyboardOpen);
+  };
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', detect);
+  }
+  window.addEventListener('resize', detect);
+  detect();
+}
+
 // ============================================================
 // Init
 // ============================================================
@@ -2941,6 +2960,7 @@ async function init() {
   loadSettings();
   await loadChatHistory();
   setStatus('online');
+  initKeyboardDetection();
 
   // Listen for PWA install prompt
   window.addEventListener('beforeinstallprompt', (e) => {
