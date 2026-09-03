@@ -120,7 +120,7 @@ body {
   width: 100%;
   max-width: 480px;
   height: 100%;
-  height: 100dvh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-chat) 45%, var(--bg-grad-bottom) 100%);
@@ -922,7 +922,7 @@ textarea.setting-input {
 @media (min-width: 481px) {
   .app {
     border-radius: 0;
-    height: 100dvh;
+    height: 100vh;
   }
 }
 </style>
@@ -1045,7 +1045,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v41</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v42</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1220,7 +1220,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v41</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v42</span>
               </p>
             </div>
           </div>
@@ -2653,7 +2653,6 @@ async function sendMessage() {
     // 无论成败都复位，避免卡在"正在输入"或按钮一直灰着发不出去
     isGenerating = false;
     currentAbortController = null;
-    msgInput.focus();
     onInputChange();
   }
 
@@ -2894,7 +2893,6 @@ async function regenerateFromAssistant(assistantId) {
   } finally {
     isGenerating = false;
     currentAbortController = null;
-    msgInput.focus();
     onInputChange();
   }
 }
@@ -2943,7 +2941,6 @@ async function init() {
   loadSettings();
   await loadChatHistory();
   setStatus('online');
-  msgInput.focus();
 
   // Listen for PWA install prompt
   window.addEventListener('beforeinstallprompt', (e) => {
