@@ -863,6 +863,44 @@ textarea.setting-input {
 .sr-body mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px; padding: 0 2px; font-weight: 600; }
 .msg-flash { animation: msgflash 1.6s ease; }
 @keyframes msgflash { 0%, 60% { background: var(--accent-soft); } 100% { background: transparent; } }
+
+/* 记忆条目列表 */
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.memory-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.mi-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.mi-del {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.mi-del:active { background: var(--danger); color: #fff; }
 .opt-dot {
   width: 20px; height: 20px; border-radius: 50%;
   border: 2px solid var(--border);
@@ -1047,7 +1085,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v43</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v44</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1127,10 +1165,20 @@ textarea.setting-input {
           <div class="card">
             <div class="card-title">🧠 记忆（关于我）</div>
             <div class="card-body">
-              <textarea class="setting-input" id="memoryInput" onchange="saveMemory()"
-                placeholder="写下关于你的事，让每个角色都记住你：比如你的名字、职业、喜好、重要的事..."></textarea>
-              <p class="opt-sub">这里的内容会告诉每一个角色，她们都会记住你。也可以点下面的按钮，让七七自动从最近的对话里提取关于你的信息。</p>
+              <div class="memory-list" id="memoryList"></div>
+              <div class="setting-row">
+                <input class="setting-input" id="memoryAddInput" placeholder="手动加一条，如：老公喜欢吃辣">
+                <button class="btn btn-outline btn-sm" onclick="addMemoryItem()">＋ 添加</button>
+              </div>
               <button class="btn btn-outline btn-sm" onclick="extractMemoryNow()">🧠 立即提取记忆</button>
+              <p class="opt-sub">每条记忆可单独删除。这里的内容会告诉每一个角色，她们都会记住你。也可以点按钮让七七自动从最近对话提取关于你的信息。</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">📝 批量编辑</div>
+            <div class="card-body">
+              <textarea class="setting-input" id="memoryInput" onchange="saveMemory()"
+                placeholder="每行一条记忆，可手动整理..."></textarea>
             </div>
           </div>
         </div>
@@ -1192,14 +1240,24 @@ textarea.setting-input {
           </div>
         </div>
 
-        <!-- Export -->
+        <!-- Data management -->
         <div class="setting-group" data-subpage="data">
           <div class="card">
-            <div class="card-title">💾 数据管理</div>
+            <div class="card-title">💾 完整备份</div>
+            <div class="card-body">
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" onclick="exportBackup()">📦 导出完整备份</button>
+                <button class="btn btn-outline btn-sm" onclick="importBackup()">📥 恢复备份</button>
+              </div>
+              <p class="opt-sub">备份包含：聊天记录、角色人设、记忆、所有设置（含 API Key）。换手机 / 重装前先导出，之后用「恢复备份」一键还原。</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">💬 聊天记录</div>
             <div class="card-body card-row">
-              <button class="btn btn-outline btn-sm" onclick="exportChat()">📤 导出聊天记录</button>
-              <button class="btn btn-outline btn-sm" onclick="importChat()">📥 导入聊天记录</button>
-              <button class="btn btn-danger btn-sm" onclick="clearChat()">🗑️ 清空聊天</button>
+              <button class="btn btn-outline btn-sm" onclick="exportChat()">📤 导出</button>
+              <button class="btn btn-outline btn-sm" onclick="importChat()">📥 导入</button>
+              <button class="btn btn-danger btn-sm" onclick="clearChat()">🗑️ 清空</button>
             </div>
           </div>
         </div>
@@ -1222,7 +1280,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v43</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v44</span>
               </p>
             </div>
           </div>
@@ -1290,6 +1348,8 @@ textarea.setting-input {
 
 <!-- Hidden file input for import -->
 <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+<!-- Hidden file input for full backup restore -->
+<input type="file" id="backupFile" accept=".json" style="display:none" onchange="handleBackupImport(event)">
 <!-- Hidden file input for avatar upload -->
 <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
 
@@ -1515,6 +1575,7 @@ function loadSettings() {
   $('#charBackground').value = config.background || '';
   $('#charGreeting').value = config.greeting || '';
   $('#memoryInput').value = localStorage.getItem('qiqi_memory') || '';
+  renderMemoryList();
   $('#apiKeyInput').value = apiKey;
   $('#sfKeyInput').value = sfKey;
   $('#temperature').value = temperature;
@@ -1653,7 +1714,66 @@ async function deleteCharacter() {
 
 function saveMemory() {
   localStorage.setItem('qiqi_memory', $('#memoryInput').value.trim());
+  renderMemoryList();
   showToast('✅ 记忆已保存');
+}
+
+// ── 记忆条目（可单独查看 / 添加 / 删除）──
+function getMemoryLines() {
+  return (localStorage.getItem('qiqi_memory') || '')
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function setMemoryLines(lines) {
+  const text = lines.join('\n');
+  localStorage.setItem('qiqi_memory', text);
+  const mi = $('#memoryInput');
+  if (mi) mi.value = text;
+  renderMemoryList();
+}
+
+function renderMemoryList() {
+  const box = $('#memoryList');
+  if (!box) return;
+  const lines = getMemoryLines();
+  if (lines.length === 0) {
+    box.innerHTML = '<p class="opt-sub" style="text-align:center;padding:8px 0;">还没有记忆。聊多了她会自动记住你，也可以手动添加。</p>';
+    return;
+  }
+  box.innerHTML = '';
+  for (let i = 0; i < lines.length; i++) {
+    const item = document.createElement('div');
+    item.className = 'memory-item';
+    const txt = document.createElement('span');
+    txt.className = 'mi-text';
+    txt.textContent = lines[i];
+    const del = document.createElement('button');
+    del.className = 'mi-del';
+    del.title = '删除这条';
+    del.textContent = '✕';
+    del.onclick = () => {
+      const cur = getMemoryLines();
+      cur.splice(i, 1);
+      setMemoryLines(cur);
+      showToast('🗑️ 已删除一条记忆');
+    };
+    item.appendChild(txt);
+    item.appendChild(del);
+    box.appendChild(item);
+  }
+}
+
+function addMemoryItem() {
+  const inp = $('#memoryAddInput');
+  const text = (inp.value || '').trim();
+  if (!text) { showToast('先写点内容再添加'); return; }
+  const lines = getMemoryLines();
+  lines.push(text);
+  setMemoryLines(lines);
+  inp.value = '';
+  showToast('✅ 已添加记忆');
 }
 
 function applyAccent(accent) {
@@ -1868,6 +1988,7 @@ function openSubPage(name) {
     renderAvatar($('#charAvatarPreview'), config.avatar);
   } else if (name === 'memory') {
     $('#memoryInput').value = localStorage.getItem('qiqi_memory') || '';
+    renderMemoryList();
   } else if (name === 'api') {
     $('#apiKeyInput').value = apiKey;
   } else if (name === 'search') {
@@ -2415,6 +2536,7 @@ async function doExtractMemory(charId) {
   if (updated && updated !== existing) {
     localStorage.setItem('qiqi_memory', updated);
     const mi = $('#memoryInput'); if (mi) mi.value = updated;
+    renderMemoryList();
     showToast('🧠 已自动更新记忆');
   } else {
     showToast('🧠 记忆没有需要更新的内容');
@@ -2730,6 +2852,123 @@ async function handleImport(event) {
     showToast(`✅ 已导入 ${valid.length} 条消息`);
   } catch(e) {
     showToast('❌ 导入失败: ' + e.message);
+  }
+  event.target.value = '';
+}
+
+// ============================================================
+// 完整备份 / 恢复（聊天记录 + 人设 + 记忆 + 所有设置）
+// ============================================================
+const BACKUP_KEYS = [
+  'qiqi_chars', 'qiqi_active', 'qiqi_apikey', 'qiqi_dark', 'qiqi_temp',
+  'qiqi_ctx', 'qiqi_voice', 'qiqi_sfkey', 'qiqi_accent', 'qiqi_memory',
+  'qiqi_digest', 'qiqi_turns_since_mem', 'qiqi_install_dismissed'
+];
+
+async function loadAllMessages() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const store = tx.objectStore(STORE);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function clearAllMessages() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    store.clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function importAllMessages(msgs) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    for (const m of msgs) {
+      store.add({
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp || Date.now(),
+        charId: m.charId || 'qiqi'
+      });
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function exportBackup() {
+  try {
+    const messages = await loadAllMessages();
+    const ls = {};
+    for (const k of BACKUP_KEYS) {
+      const v = localStorage.getItem(k);
+      if (v != null) ls[k] = v;
+    }
+    const data = {
+      type: 'qiqi_backup',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      localStorage: ls,
+      messages: messages
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date();
+    const stamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+    a.href = url;
+    a.download = `七七_完整备份_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast(`✅ 已备份 ${messages.length} 条消息 + 全部设置`);
+  } catch(e) {
+    showToast('❌ 备份失败');
+  }
+}
+
+function importBackup() {
+  $('#backupFile').click();
+}
+
+async function handleBackupImport(event) {
+  try {
+    const file = event.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data || data.type !== 'qiqi_backup') throw new Error('这不是七七的备份文件');
+
+    // 1) 恢复 localStorage（人设 / 记忆 / 设置 / API Key）
+    if (data.localStorage && typeof data.localStorage === 'object') {
+      for (const k in data.localStorage) {
+        localStorage.setItem(k, data.localStorage[k]);
+      }
+    }
+
+    // 2) 恢复聊天记录（保留每条消息所属角色）
+    const msgs = Array.isArray(data.messages)
+      ? data.messages.filter(m => m && typeof m.role === 'string' && typeof m.content === 'string')
+      : [];
+    await clearAllMessages();
+    await importAllMessages(msgs);
+
+    // 3) 重新加载
+    loadSettings();
+    await loadChatHistory();
+    showToast(`✅ 已恢复备份（${msgs.length} 条消息）`);
+  } catch(e) {
+    showToast('❌ 恢复失败: ' + (e.message || e));
   }
   event.target.value = '';
 }
