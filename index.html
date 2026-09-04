@@ -1085,7 +1085,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v45</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v46</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1280,7 +1280,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v45</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v46</span>
               </p>
             </div>
           </div>
@@ -2586,9 +2586,15 @@ async function doExtractStoryState(charId) {
   if (state) localStorage.setItem('qiqi_storystate', state);
 }
 
+const STORYSTATE_EVERY_TURNS = 3; // 剧情状态提取频率（每 N 条用户消息跑一次，省调用量/省钱，降低撞上抽风的概率）
 let isExtractingState = false;
 async function maybeExtractStoryState(charId) {
   if (isExtractingState || !apiKey) return;
+  let n = parseInt(localStorage.getItem('qiqi_turns_since_state') || '0');
+  n = (isNaN(n) ? 0 : n) + 1;
+  localStorage.setItem('qiqi_turns_since_state', String(n));
+  if (n < STORYSTATE_EVERY_TURNS) return;
+  localStorage.setItem('qiqi_turns_since_state', '0');
   isExtractingState = true;
   try { await doExtractStoryState(charId); }
   catch(e) { console.warn('auto story-state extraction failed', e); }
@@ -2658,7 +2664,7 @@ async function streamReply(messages, sendCharId) {
   let partialShown = '';  // 断网前已成功显示的内容，重试/失败时用来回显，避免"回了又没了"
   let retries = 0;
   let networkFailed = false;
-  const MAX_RETRIES = 2;  // 重试命中缓存+失败无输出，几乎免费；3次还不行=硬过滤/断网，别白等
+  const MAX_RETRIES = 3;  // 重试命中缓存+失败无输出，几乎免费；4次还不行=硬过滤/断网，别白等
 
   while (retries <= MAX_RETRIES) {
     try {
@@ -2896,7 +2902,7 @@ const BACKUP_KEYS = [
   'qiqi_chars', 'qiqi_active', 'qiqi_apikey', 'qiqi_dark', 'qiqi_temp',
   'qiqi_ctx', 'qiqi_voice', 'qiqi_sfkey', 'qiqi_accent', 'qiqi_memory',
   'qiqi_digest', 'qiqi_turns_since_mem', 'qiqi_install_dismissed',
-  'qiqi_storystate'
+  'qiqi_storystate', 'qiqi_turns_since_state'
 ];
 
 async function loadAllMessages() {
