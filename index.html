@@ -1083,9 +1083,14 @@ textarea.setting-input {
           <div class="me-item-text"><div class="me-item-title">数据管理</div><div class="me-item-sub">导出 / 导入 / 清空</div></div>
           <span class="me-item-arrow">›</span>
         </div>
+        <div class="me-item" onclick="openSubPage('debug')">
+          <span class="me-item-icon">🐞</span>
+          <div class="me-item-text"><div class="me-item-title">调试信息</div><div class="me-item-sub">最近一次空回复的诊断数据</div></div>
+          <span class="me-item-arrow">›</span>
+        </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v46</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v47</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1274,13 +1279,28 @@ textarea.setting-input {
           </div>
         </div>
 
+        <!-- Debug -->
+        <div class="setting-group" data-subpage="debug">
+          <div class="card">
+            <div class="card-title">🐞 空回复诊断</div>
+            <div class="card-body">
+              <p class="opt-sub">只有七七出现「没说出话来」空回复时才会记录。出现后点下面「复制」，把内容发给我定位。</p>
+              <div id="debugInfo" style="font-size:12px;font-family:monospace;white-space:pre-wrap;word-break:break-all;background:var(--accent-soft);border-radius:8px;padding:10px;max-height:300px;overflow:auto;">还没有记录</div>
+              <div style="margin-top:10px;">
+                <button class="btn btn-primary btn-sm" onclick="copyDebug()">📋 复制</button>
+                <button class="btn btn-sm" onclick="clearDebug()" style="margin-left:8px;">清空</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- About -->
         <div class="setting-group" data-subpage="about">
           <div class="card">
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v46</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v47</span>
               </p>
             </div>
           </div>
@@ -1969,6 +1989,7 @@ function openSubPage(name) {
     model: '模型参数',
     data: '数据管理',
     search: '聊天记录搜索',
+    debug: '调试信息',
     about: '关于',
   };
   $('#meListView').hidden = true;
@@ -1994,6 +2015,8 @@ function openSubPage(name) {
   } else if (name === 'search') {
     $('#searchInput').value = '';
     $('#searchResults').innerHTML = '<p class="opt-sub" style="text-align:center;">输入关键词开始搜索</p>';
+  } else if (name === 'debug') {
+    renderDebugInfo();
   }
 }
 
@@ -2357,7 +2380,7 @@ ${config.speakingStyle}
 // ============================================================
 // DeepSeek API
 // ============================================================
-async function* streamChat(messages) {
+async function* streamChat(messages, debug) {
   if (!apiKey) throw new Error('请先设置API Key');
 
   currentAbortController = new AbortController();
@@ -2389,6 +2412,7 @@ async function* streamChat(messages) {
 
   if (!response.ok) {
     const err = await response.text();
+    if (debug) { debug.status = response.status; debug.errBody = (err || '').slice(0, 500); }
     if (response.status === 401) throw new Error('API Key 无效，请检查');
     if (response.status === 402) throw new Error('账户余额不足，请充值');
     throw new Error(`API错误 (${response.status}): ${err}`);
@@ -2397,6 +2421,17 @@ async function* streamChat(messages) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let raw = '';
+  if (debug) {
+    debug.status = response.status;
+    debug.gotData = false;
+    debug.dataLines = 0;
+    debug.contentChunks = 0;
+    debug.finishReason = null;
+    debug.sawDone = false;
+    debug.reasoningChars = 0;
+    debug.badLines = [];
+  }
 
   try {
     while (true) {
@@ -2407,35 +2442,126 @@ async function* streamChat(messages) {
       ]);
       if (result.done) break;
 
-      buffer += decoder.decode(result.value, { stream: true });
+      const txt = decoder.decode(result.value, { stream: true });
+      if (debug) { debug.gotData = true; raw += txt; }
+      buffer += txt;
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
 
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6).trim();
-          if (data === '[DONE]') return;
+          if (debug) debug.dataLines++;
+          if (data === '[DONE]') { if (debug) debug.sawDone = true; return; }
           try {
             const json = JSON.parse(data);
             const content = json.choices?.[0]?.delta?.content;
-            if (content) yield content;
-          } catch(e) { /* skip parse errors */ }
+            const fr = json.choices?.[0]?.finish_reason;
+            const rc = json.choices?.[0]?.delta?.reasoning_content;
+            if (fr && debug) debug.finishReason = fr;
+            if (rc && debug) debug.reasoningChars += String(rc).length;
+            if (content) { if (debug) debug.contentChunks++; yield content; }
+          } catch(e) {
+            if (debug && debug.badLines.length < 5) debug.badLines.push(data.slice(0, 200));
+          }
         }
       }
     }
 
     // Process any remaining data in buffer after stream ends
     if (buffer.trim() && buffer.startsWith('data: ') && buffer.trim() !== 'data: [DONE]') {
+      if (debug) debug.dataLines++;
       try {
         const data = buffer.trim().slice(6).trim();
         const json = JSON.parse(data);
         const content = json.choices?.[0]?.delta?.content;
-        if (content) yield content;
+        const fr = json.choices?.[0]?.finish_reason;
+        if (fr && debug) debug.finishReason = fr;
+        if (content) { if (debug) debug.contentChunks++; yield content; }
       } catch(e) { /* skip */ }
     }
   } finally {
+    if (debug) debug.rawTail = raw.slice(-1500);
     reader.cancel().catch(() => {});
   }
+}
+
+// ============================================================
+// 空回复诊断 —— 把 DeepSeek 空回复时的原始返回存下来，供「调试信息」页查看
+// ============================================================
+function saveEmptyDebug(d) {
+  if (!d) return;
+  try {
+    localStorage.setItem('qiqi_last_empty_debug', JSON.stringify({
+      time: new Date().toLocaleString('zh-CN'),
+      attempt: d.attempt,
+      status: d.status,
+      gotData: d.gotData,
+      dataLines: d.dataLines,
+      contentChunks: d.contentChunks,
+      finishReason: d.finishReason,
+      sawDone: d.sawDone,
+      reasoningChars: d.reasoningChars,
+      badLines: d.badLines,
+      errBody: d.errBody,
+      rawTail: d.rawTail
+    }));
+  } catch(e) { console.warn('saveEmptyDebug failed', e); }
+}
+
+function renderDebugInfo() {
+  const el = $('#debugInfo');
+  if (!el) return;
+  const t = localStorage.getItem('qiqi_last_empty_debug');
+  if (!t) { el.textContent = '还没有记录。出现「没说出话来」空回复后会自动记录。'; return; }
+  try {
+    const j = JSON.parse(t);
+    const lines = [
+      '时间：' + j.time,
+      '第几次尝试：' + j.attempt,
+      'HTTP 状态：' + j.status,
+      '是否收到数据：' + (j.gotData ? '是' : '否'),
+      'data 行数：' + j.dataLines,
+      '内容块数：' + j.contentChunks,
+      'finish_reason：' + (j.finishReason || '（无）'),
+      '是否见到 [DONE]：' + (j.sawDone ? '是' : '否'),
+      'reasoning 字符数：' + j.reasoningChars
+    ];
+    if (j.badLines && j.badLines.length) lines.push('解析失败的行：' + JSON.stringify(j.badLines));
+    if (j.errBody) lines.push('错误响应体：' + j.errBody);
+    if (j.rawTail) lines.push('原始返回尾部：\n' + j.rawTail);
+    el.textContent = lines.join('\n');
+  } catch(e) {
+    el.textContent = t;
+  }
+}
+
+function fallbackCopy(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch(e) {}
+}
+
+function copyDebug() {
+  const t = localStorage.getItem('qiqi_last_empty_debug');
+  if (!t) { showToast('还没有记录'); return; }
+  const done = () => showToast('✅ 已复制，发给我');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(done).catch(() => { fallbackCopy(t); done(); });
+  } else {
+    fallbackCopy(t); done();
+  }
+}
+
+function clearDebug() {
+  localStorage.removeItem('qiqi_last_empty_debug');
+  renderDebugInfo();
+  showToast('已清空');
 }
 
 // ============================================================
@@ -2667,8 +2793,9 @@ async function streamReply(messages, sendCharId) {
   const MAX_RETRIES = 3;  // 重试命中缓存+失败无输出，几乎免费；4次还不行=硬过滤/断网，别白等
 
   while (retries <= MAX_RETRIES) {
+    const debug = { attempt: retries + 1 };
     try {
-      for await (const chunk of streamChat(messages)) {
+      for await (const chunk of streamChat(messages, debug)) {
         fullResponse += chunk;
         if (!responseRow) {
           typingBox.style.display = 'none';
@@ -2684,6 +2811,7 @@ async function streamReply(messages, sendCharId) {
       if (fullResponse.trim()) {
         break; // Real success, exit retry loop
       }
+      saveEmptyDebug(debug); // 空回复：把原始返回存下来，供「调试信息」页查看
       if (retries < MAX_RETRIES) {
         retries++;
         fullResponse = '';
