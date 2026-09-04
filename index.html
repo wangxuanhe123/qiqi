@@ -2824,6 +2824,7 @@ async function clearChat() {
 
   await clearMessagesFor(activeCharId);
   clearDigestFor(activeCharId);
+  localStorage.removeItem('qiqi_storystate'); // 剧情状态跟着当前对话走，清空时一起清掉
   chatArea.innerHTML = '';
   // Re-add opening greeting + welcome
   renderGreeting();
