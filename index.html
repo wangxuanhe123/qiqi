@@ -1090,7 +1090,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v47</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v48</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1300,7 +1300,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v47</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v48</span>
               </p>
             </div>
           </div>
@@ -2399,7 +2399,7 @@ async function* streamChat(messages, debug) {
         model: 'deepseek-v4-flash',
         messages: messages,
         temperature: temperature,
-        max_tokens: 512,
+        max_tokens: 2048,
         frequency_penalty: 0.4,
         presence_penalty: 0.2,
         stream: true
@@ -2567,7 +2567,7 @@ function clearDebug() {
 // ============================================================
 // Plain (non-streaming) DeepSeek helper — for memory / compression
 // ============================================================
-async function deepseekPlain(messages, { maxTokens = 300, temperature: t = 0.3 } = {}) {
+async function deepseekPlain(messages, { maxTokens = 800, temperature: t = 0.3 } = {}) {
   if (!apiKey) return '';
   try {
     const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -2619,7 +2619,7 @@ async function summarizeHistory(prevDigest, newMsgs, charName) {
   const text = await deepseekPlain([
     { role: 'system', content: '你是对话记忆压缩助手。只输出摘要内容本身，不要解释，不要加任何前缀。' },
     { role: 'user', content: prompt + '\n\n对话：\n' + convo }
-  ], { maxTokens: 300, temperature: 0.3 });
+  ], { maxTokens: 800, temperature: 0.3 });
   return (text || '').trim();
 }
 
@@ -2652,7 +2652,7 @@ async function extractMemoryFacts(msgs, charName, existingMemory) {
   return deepseekPlain([
     { role: 'system', content: '你是记忆助手。请更新长期记忆：**逐条原样照抄现有记忆里的每一条，一个字都不能少、不能删、不能改**；如果新对话里出现了现有记忆没有的新信息，追加为新条目；只有完全重复的条目才合并。输出完整清单，每条一行，简洁中文，不要添加任何解释。' },
     { role: 'user', content: '当前记忆：\n' + (existingMemory || '（空）') + '\n\n新对话：\n' + convo }
-  ], { maxTokens: 400, temperature: 0.2 });
+  ], { maxTokens: 1024, temperature: 0.2 });
 }
 
 async function doExtractMemory(charId) {
@@ -2702,7 +2702,7 @@ async function extractStoryState(msgs, charName) {
   return deepseekPlain([
     { role: 'system', content: '你是剧情状态记录助手。根据最近对话，提炼当前剧情进行到的状态，用一行简洁中文输出，格式固定为「时间=xxx；场景=xxx；人物位置=xxx」。只写对话里明确提到的，没提到的项写"未知"，绝不编造、不写多余内容。' },
     { role: 'user', content: '最近对话：\n' + convo }
-  ], { maxTokens: 120, temperature: 0.1 });
+  ], { maxTokens: 512, temperature: 0.1 });
 }
 
 async function doExtractStoryState(charId) {
