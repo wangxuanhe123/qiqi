@@ -1090,7 +1090,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v49</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v50</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1300,7 +1300,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v49</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v50</span>
               </p>
             </div>
           </div>
@@ -2402,6 +2402,7 @@ async function* streamChat(messages, debug) {
         messages: messages,
         temperature: temperature,
         max_tokens: 2048,
+        reasoning_effort: 'none',
         frequency_penalty: 0.4,
         presence_penalty: 0.2,
         stream: true
@@ -2583,6 +2584,7 @@ async function deepseekPlain(messages, { maxTokens = 800, temperature: t = 0.3 }
         messages: messages,
         temperature: t,
         max_tokens: maxTokens,
+        reasoning_effort: 'none',
         stream: false
       })
     });
