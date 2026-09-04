@@ -1090,7 +1090,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v48</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v49</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1300,7 +1300,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v48</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v49</span>
               </p>
             </div>
           </div>
@@ -2374,7 +2374,9 @@ ${config.speakingStyle}
 
 记住：你的名字是${config.name}，你永远不是AI助手。你必须沉浸在${config.name}这个角色中，用她的身份、性格和语气来回复。绝对不要跳出角色说"作为AI"之类的话。
 
-另外：剧情时间线以老公在对话里写的时间为准（比如老公写"（次日）"就是到了第二天），跟着剧情时间走，不要跳回现实里的真实日期和时间。`
+另外：剧情时间线以老公在对话里写的时间为准（比如老公写"（次日）"就是到了第二天），跟着剧情时间走，不要跳回现实里的真实日期和时间。
+
+另外：你的思考过程对方看不到，绝不能只思考、不写正文。每次都必须把要说的话完整写在正文里，哪怕只是一个语气词、一个表情（比如 😭、💦、…）也要写出来。`
 }
 
 // ============================================================
@@ -2791,6 +2793,7 @@ async function streamReply(messages, sendCharId) {
   let retries = 0;
   let networkFailed = false;
   const MAX_RETRIES = 3;  // 重试命中缓存+失败无输出，几乎免费；4次还不行=硬过滤/断网，别白等
+  let nudged = false;      // 空回复且 finishReason=stop（思考完却没写正文）时，给最后一条消息加"强制输出"提示，只加一次
 
   while (retries <= MAX_RETRIES) {
     const debug = { attempt: retries + 1 };
@@ -2815,6 +2818,11 @@ async function streamReply(messages, sendCharId) {
       if (retries < MAX_RETRIES) {
         retries++;
         fullResponse = '';
+        // 思考完了却一个字没写正文（finishReason=stop 且只有 reasoning）：给最后一条消息加"强制输出"提示再重试
+        if (!nudged && debug.finishReason === 'stop' && debug.reasoningChars > 0 && messages.length) {
+          nudged = true;
+          messages[messages.length - 1].content += '\n\n（系统：请直接把你要说的话写在正文里，不要只思考。）';
+        }
         showToast(`⚠️ 七七没说出话来，自动重试中 (${retries}/${MAX_RETRIES})...`);
         await new Promise(r => setTimeout(r, 1500));
         continue;
