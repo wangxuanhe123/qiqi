@@ -1085,7 +1085,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v44</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v45</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1280,7 +1280,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v44</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v45</span>
               </p>
             </div>
           </div>
@@ -2349,7 +2349,9 @@ ${config.speakingStyle}
 
 背景信息：${config.background}
 
-记住：你的名字是${config.name}，你永远不是AI助手。你必须沉浸在${config.name}这个角色中，用她的身份、性格和语气来回复。绝对不要跳出角色说"作为AI"之类的话。`
+记住：你的名字是${config.name}，你永远不是AI助手。你必须沉浸在${config.name}这个角色中，用她的身份、性格和语气来回复。绝对不要跳出角色说"作为AI"之类的话。
+
+另外：剧情时间线以老公在对话里写的时间为准（比如老公写"（次日）"就是到了第二天），跟着剧情时间走，不要跳回现实里的真实日期和时间。`
 }
 
 // ============================================================
@@ -2567,6 +2569,33 @@ async function extractMemoryNow() {
 }
 
 // ============================================================
+// 剧情状态（当前时间/场景/位置）自动记录 —— 防止跳时间/串场景/幻觉
+// ============================================================
+async function extractStoryState(msgs, charName) {
+  const convo = msgs.map(m => (m.role === 'user' ? '老公' : charName) + '：' + m.content).join('\n');
+  return deepseekPlain([
+    { role: 'system', content: '你是剧情状态记录助手。根据最近对话，提炼当前剧情进行到的状态，用一行简洁中文输出，格式固定为「时间=xxx；场景=xxx；人物位置=xxx」。只写对话里明确提到的，没提到的项写"未知"，绝不编造、不写多余内容。' },
+    { role: 'user', content: '最近对话：\n' + convo }
+  ], { maxTokens: 120, temperature: 0.1 });
+}
+
+async function doExtractStoryState(charId) {
+  const msgs = await loadMessages(12);
+  if (msgs.length < 2) return;
+  const state = (await extractStoryState(msgs, config.name)).trim();
+  if (state) localStorage.setItem('qiqi_storystate', state);
+}
+
+let isExtractingState = false;
+async function maybeExtractStoryState(charId) {
+  if (isExtractingState || !apiKey) return;
+  isExtractingState = true;
+  try { await doExtractStoryState(charId); }
+  catch(e) { console.warn('auto story-state extraction failed', e); }
+  finally { isExtractingState = false; }
+}
+
+// ============================================================
 // Build messages (dedup + timestamp + compression digest)
 // ============================================================
 async function buildMessages({ newUserText = null, historyOverride = null, charId }) {
@@ -2591,13 +2620,14 @@ async function buildMessages({ newUserText = null, historyOverride = null, charI
     const prev = deduped[deduped.length - 1];
     if (!prev || prev.role !== m.role || prev.content !== m.content) deduped.push(m);
   }
-  // 把"会变"的内容（时间 / 记忆 / 摘要）统一追加到最后一条消息末尾，
+  // 把"会变"的内容（剧情状态 / 记忆 / 摘要）统一追加到最后一条消息末尾，
   // 而不是放进系统提示 —— 这样"系统提示 + 历史"构成稳定前缀，DeepSeek 缓存命中率大幅提升。
   const last = deduped[deduped.length - 1];
   if (last) {
     const mem = (localStorage.getItem('qiqi_memory') || '').trim();
+    const state = (localStorage.getItem('qiqi_storystate') || '').trim();
     const tail = [];
-    tail.push(`（现在时间：${new Date().toLocaleString('zh-CN')}）`);
+    if (state) tail.push(`【当前剧情状态（照这个演，不要跳回现实时间或现实场景）】\n${state}`);
     if (mem) tail.push(`【关于老公（用户）的背景信息，供你了解，不必刻意提起】\n${mem}`);
     if (digestText) tail.push(`【你们更早之前的对话摘要（供你回忆上下文，不必逐字复述）】\n${digestText}`);
     last.content = `${last.content}\n\n${tail.join('\n\n')}`;
@@ -2782,6 +2812,8 @@ async function sendMessage() {
 
   // Opportunistic long-term memory extraction (throttled, non-blocking)
   maybeExtractMemory(sendCharId);
+  // 剧情状态记录（非阻塞，跑在回复之后，供下一轮用）
+  maybeExtractStoryState(sendCharId);
 }
 
 // ============================================================
@@ -2862,7 +2894,8 @@ async function handleImport(event) {
 const BACKUP_KEYS = [
   'qiqi_chars', 'qiqi_active', 'qiqi_apikey', 'qiqi_dark', 'qiqi_temp',
   'qiqi_ctx', 'qiqi_voice', 'qiqi_sfkey', 'qiqi_accent', 'qiqi_memory',
-  'qiqi_digest', 'qiqi_turns_since_mem', 'qiqi_install_dismissed'
+  'qiqi_digest', 'qiqi_turns_since_mem', 'qiqi_install_dismissed',
+  'qiqi_storystate'
 ];
 
 async function loadAllMessages() {
