@@ -1090,7 +1090,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v50</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v51</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1175,7 +1175,10 @@ textarea.setting-input {
                 <input class="setting-input" id="memoryAddInput" placeholder="手动加一条，如：老公喜欢吃辣">
                 <button class="btn btn-outline btn-sm" onclick="addMemoryItem()">＋ 添加</button>
               </div>
-              <button class="btn btn-outline btn-sm" onclick="extractMemoryNow()">🧠 立即提取记忆</button>
+              <div class="setting-row">
+                <button class="btn btn-outline btn-sm" onclick="extractMemoryNow()">🧠 立即提取记忆</button>
+                <button class="btn btn-outline btn-sm" onclick="clearMemory()">🗑 清空记忆</button>
+              </div>
               <p class="opt-sub">每条记忆可单独删除。这里的内容会告诉每一个角色，她们都会记住你。也可以点按钮让七七自动从最近对话提取关于你的信息。</p>
             </div>
           </div>
@@ -1300,7 +1303,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v50</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v51</span>
               </p>
             </div>
           </div>
@@ -1794,6 +1797,15 @@ function addMemoryItem() {
   setMemoryLines(lines);
   inp.value = '';
   showToast('✅ 已添加记忆');
+}
+
+function clearMemory() {
+  if (!confirm('确定要清空全部记忆吗？此操作不可恢复。')) return;
+  localStorage.setItem('qiqi_memory', '');
+  const mi = $('#memoryInput');
+  if (mi) mi.value = '';
+  renderMemoryList();
+  showToast('🗑️ 记忆已清空');
 }
 
 function applyAccent(accent) {
@@ -2654,8 +2666,8 @@ async function ensureCompressed(older, charId) {
 async function extractMemoryFacts(msgs, charName, existingMemory) {
   const convo = msgs.map(m => (m.role === 'user' ? '用户' : charName) + '：' + m.content).join('\n');
   return deepseekPlain([
-    { role: 'system', content: '你是记忆助手。请更新长期记忆：**逐条原样照抄现有记忆里的每一条，一个字都不能少、不能删、不能改**；如果新对话里出现了现有记忆没有的新信息，追加为新条目；只有完全重复的条目才合并。输出完整清单，每条一行，简洁中文，不要添加任何解释。' },
-    { role: 'user', content: '当前记忆：\n' + (existingMemory || '（空）') + '\n\n新对话：\n' + convo }
+    { role: 'system', content: '你是记忆助手。把对话中「长期有用」的信息整理成一份简洁记忆清单，直接输出，每条一行，简洁中文，不要解释。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如子女名字、职业）；②不要记一次性场景的过程、某一次对话的具体内容、具体玩法步骤，这些是过程不是记忆；③语义相近的条目合并成一条，去掉重复；④整份清单最多 20 条，只留最重要的，宁缺毋滥。' },
+    { role: 'user', content: '现有记忆（供参考，可精简可删改）：\n' + (existingMemory || '（空）') + '\n\n最近对话：\n' + convo }
   ], { maxTokens: 1024, temperature: 0.2 });
 }
 
