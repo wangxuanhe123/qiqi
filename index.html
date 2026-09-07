@@ -1090,7 +1090,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v51</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v52</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1170,6 +1170,10 @@ textarea.setting-input {
           <div class="card">
             <div class="card-title">🧠 记忆（关于我）</div>
             <div class="card-body">
+              <div class="opt-row" style="cursor:default;">
+                <span class="opt-text"><span class="opt-title">📝 自动记忆</span><span class="opt-sub">关掉后七七不再自动记新记忆</span></span>
+                <div class="toggle" id="memToggle" onclick="toggleMemory()"></div>
+              </div>
               <div class="memory-list" id="memoryList"></div>
               <div class="setting-row">
                 <input class="setting-input" id="memoryAddInput" placeholder="手动加一条，如：老公喜欢吃辣">
@@ -1303,7 +1307,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v51</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v52</span>
               </p>
             </div>
           </div>
@@ -1428,6 +1432,7 @@ let deferredPrompt = null;
 let ctxTarget = null;  // message row being context-menu'd
 let editingMsgId = null;   // message id being edited (edit-then-resend replaces it + downstream)
 let isExtractingMem = false; // guards memory extraction
+let memAuto = true; // 记忆开关：关掉后不再自动提取新记忆
 
 // ── DOM refs ──
 const $ = (s) => document.querySelector(s);
@@ -1587,6 +1592,7 @@ function loadSettings() {
   temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
   contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
   voiceEnabled = localStorage.getItem('qiqi_voice') === '1';
+  memAuto = localStorage.getItem('qiqi_mem_auto') !== '0';
   sfKey = localStorage.getItem('qiqi_sfkey') || '';
   const accent = localStorage.getItem('qiqi_accent') || 'pink';
 
@@ -1604,6 +1610,7 @@ function loadSettings() {
   $('#temperature').value = temperature;
   $('#contextRounds').value = contextRounds;
   if (voiceEnabled) $('#voiceToggle').classList.add('on');
+  if (memAuto) $('#memToggle').classList.add('on');
   headerName.textContent = config.name;
   renderAvatar(headerAvatar, config.avatar);
   msgInput.placeholder = '和' + config.name + '说点什么...';
@@ -1852,6 +1859,13 @@ function toggleVoice() {
   localStorage.setItem('qiqi_voice', voiceEnabled ? '1' : '0');
   if (voiceEnabled) speak('语音开启啦，老公～');
   else { try { speechSynthesis.cancel(); } catch(e) {} }
+}
+
+function toggleMemory() {
+  memAuto = !memAuto;
+  if (memAuto) $('#memToggle').classList.add('on');
+  else $('#memToggle').classList.remove('on');
+  localStorage.setItem('qiqi_mem_auto', memAuto ? '1' : '0');
 }
 
 // ── 语音：优先硅基流动 CosyVoice2（克隆少御音色），没填 key 退回浏览器 TTS ──
@@ -2666,7 +2680,7 @@ async function ensureCompressed(older, charId) {
 async function extractMemoryFacts(msgs, charName, existingMemory) {
   const convo = msgs.map(m => (m.role === 'user' ? '用户' : charName) + '：' + m.content).join('\n');
   return deepseekPlain([
-    { role: 'system', content: '你是记忆助手。把对话中「长期有用」的信息整理成一份简洁记忆清单，直接输出，每条一行，简洁中文，不要解释。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如子女名字、职业）；②不要记一次性场景的过程、某一次对话的具体内容、具体玩法步骤，这些是过程不是记忆；③语义相近的条目合并成一条，去掉重复；④整份清单最多 20 条，只留最重要的，宁缺毋滥。' },
+    { role: 'system', content: '你是记忆助手。把对话中「长期有用」的信息整理成一份简洁记忆清单，直接输出，每条一行，简洁中文，不要解释，不要用 -、数字或任何序号前缀。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如子女名字、职业）；②不要记一次性场景的过程、某一次对话的具体内容、具体玩法步骤，这些是过程不是记忆；③同一条信息只出现一次，语义相近或说的是同一件事的必须合并成一条，绝不拆成多条（例如"严上司"和"公司职业形象"算同一件事，只写一条）；④整份清单最多 20 条，只留最重要的，宁缺毋滥。' },
     { role: 'user', content: '现有记忆（供参考，可精简可删改）：\n' + (existingMemory || '（空）') + '\n\n最近对话：\n' + convo }
   ], { maxTokens: 1024, temperature: 0.2 });
 }
@@ -2689,7 +2703,7 @@ async function doExtractMemory(charId) {
 
 const MEM_EVERY_TURNS = 15; // run auto-extraction after every N user messages
 async function maybeExtractMemory(charId) {
-  if (isExtractingMem || !apiKey) return;
+  if (!memAuto || isExtractingMem || !apiKey) return;
   let n = parseInt(localStorage.getItem('qiqi_turns_since_mem') || '0');
   n = (isNaN(n) ? 0 : n) + 1;
   localStorage.setItem('qiqi_turns_since_mem', String(n));
@@ -3050,7 +3064,7 @@ async function handleImport(event) {
 // ============================================================
 const BACKUP_KEYS = [
   'qiqi_chars', 'qiqi_active', 'qiqi_apikey', 'qiqi_dark', 'qiqi_temp',
-  'qiqi_ctx', 'qiqi_voice', 'qiqi_sfkey', 'qiqi_accent', 'qiqi_memory',
+  'qiqi_ctx', 'qiqi_voice', 'qiqi_sfkey', 'qiqi_accent', 'qiqi_memory', 'qiqi_mem_auto',
   'qiqi_digest', 'qiqi_turns_since_mem', 'qiqi_install_dismissed',
   'qiqi_storystate', 'qiqi_turns_since_state'
 ];
