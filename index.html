@@ -1159,7 +1159,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v54</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v55</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1376,7 +1376,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v54</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v55</span>
               </p>
             </div>
           </div>
@@ -2359,6 +2359,7 @@ function pickAvatar() {
 function handleAvatarUpload(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
+  const targetCharId = activeCharId; // 捕获当前角色，避免图片异步加载期间切换角色导致头像赋错人
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = new Image();
@@ -2372,12 +2373,17 @@ function handleAvatarUpload(event) {
       const scale = Math.max(size / img.width, size / img.height);
       const cw = img.width * scale, ch = img.height * scale;
       ctx.drawImage(img, (size - cw) / 2, (size - ch) / 2, cw, ch);
-      config.avatar = canvas.toDataURL('image/jpeg', 0.85);
+      const target = chars.find(c => c.id === targetCharId);
+      if (!target) return;
+      target.avatar = canvas.toDataURL('image/jpeg', 0.85);
       persistChars();
-      renderAvatar(headerAvatar, config.avatar);
-      renderAvatar($('#typingAvatar'), config.avatar);
-      applyAvatarUI();
-      refreshCharSelect();
+      renderRoleList(); // 立即刷新角色列表卡片
+      if (targetCharId === activeCharId) {
+        renderAvatar(headerAvatar, target.avatar);
+        renderAvatar($('#typingAvatar'), target.avatar);
+        applyAvatarUI();
+        refreshCharSelect();
+      }
       showToast('✅ 头像已更新');
     };
     img.onerror = () => { showToast('❌ 图片读取失败'); event.target.value = ''; };
