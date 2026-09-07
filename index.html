@@ -709,6 +709,54 @@ body.keyboard-open .bottom-nav { display: none; }
 .me-item-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 .me-item-arrow { font-size: 20px; color: var(--text-secondary); }
 
+/* ========== 角色页 ========== */
+.role-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  padding-top: max(16px, calc(env(safe-area-inset-top) + 8px));
+}
+.role-title { font-size: 20px; font-weight: 700; color: var(--text); }
+.role-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.role-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+.role-item:active { background: var(--accent-soft); }
+.role-item.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.role-avatar {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+  overflow: hidden;
+}
+.role-info { flex: 1; min-width: 0; }
+.role-name { font-size: 17px; font-weight: 600; color: var(--text); }
+.role-sub {
+  font-size: 13px; color: var(--text-secondary); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* ========== Sub page ========== */
 .sub-page {
   flex: 1;
@@ -1038,6 +1086,15 @@ textarea.setting-input {
     </div>
   </div>
 
+  <!-- ===== 角色页 ===== -->
+  <div class="page" id="rolePage" hidden>
+    <div class="role-top">
+      <div class="role-title">我的角色</div>
+      <button class="btn btn-outline btn-sm" onclick="addCharacter()">＋ 新增</button>
+    </div>
+    <div class="role-list" id="roleList"></div>
+  </div>
+
   <!-- ===== 我页 ===== -->
   <div class="page" id="mePage" hidden>
     <!-- 列表视图 -->
@@ -1090,7 +1147,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v52</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v53</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1307,7 +1364,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v52</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v53</span>
               </p>
             </div>
           </div>
@@ -1350,6 +1407,10 @@ textarea.setting-input {
 
   <!-- ===== 底部导航 ===== -->
   <nav class="bottom-nav">
+    <div class="nav-item" id="navRole" onclick="switchTab('role')">
+      <span class="nav-icon">💕</span>
+      <span class="nav-label">角色</span>
+    </div>
     <div class="nav-item active" id="navChat" onclick="switchTab('chat')">
       <span class="nav-icon">💬</span>
       <span class="nav-label">聊天</span>
@@ -1651,6 +1712,38 @@ function refreshCharSelect() {
   }
 }
 
+function renderRoleList() {
+  const box = $('#roleList');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const c of chars) {
+    const item = document.createElement('div');
+    item.className = 'role-item' + (c.id === activeCharId ? ' active' : '');
+    item.onclick = () => enterChar(c.id);
+    const av = document.createElement('div');
+    av.className = 'role-avatar';
+    renderAvatar(av, c.avatar);
+    const info = document.createElement('div');
+    info.className = 'role-info';
+    const nm = document.createElement('div');
+    nm.className = 'role-name';
+    nm.textContent = c.name;
+    const sub = document.createElement('div');
+    sub.className = 'role-sub';
+    sub.textContent = c.background || '点击进入聊天';
+    info.appendChild(nm);
+    info.appendChild(sub);
+    item.appendChild(av);
+    item.appendChild(info);
+    box.appendChild(item);
+  }
+}
+
+async function enterChar(id) {
+  if (id !== activeCharId) await switchChar(id);
+  switchTab('chat');
+}
+
 function saveCharConfig() {
   config.name = $('#charName').value.trim() || config.name;
   config.personality = $('#charPersonality').value.trim();
@@ -1712,6 +1805,7 @@ function addCharacter() {
   $('#charBackground').value = config.background || '';
   $('#charGreeting').value = config.greeting || '';
   applyAvatarUI();
+  renderRoleList();
   loadChatHistory();
   showToast('✅ 已新增角色，快去编辑设定吧');
 }
@@ -1985,18 +2079,14 @@ if ('speechSynthesis' in window) {
 // 底部 tab 切换：聊天 / 我
 function switchTab(tab) {
   $('#profilePage').hidden = true;
-  if (tab === 'me') {
-    $('#chatPage').hidden = true;
-    $('#mePage').hidden = false;
-    $('#navChat').classList.remove('active');
-    $('#navMe').classList.add('active');
-    showMeList();
-  } else {
-    $('#chatPage').hidden = false;
-    $('#mePage').hidden = true;
-    $('#navChat').classList.add('active');
-    $('#navMe').classList.remove('active');
-  }
+  $('#chatPage').hidden = (tab !== 'chat');
+  $('#mePage').hidden = (tab !== 'me');
+  $('#rolePage').hidden = (tab !== 'role');
+  $('#navChat').classList.toggle('active', tab === 'chat');
+  $('#navMe').classList.toggle('active', tab === 'me');
+  $('#navRole').classList.toggle('active', tab === 'role');
+  if (tab === 'me') showMeList();
+  if (tab === 'role') renderRoleList();
 }
 
 // 我页：显示设置项列表（隐藏子页）
@@ -3401,6 +3491,7 @@ async function init() {
   }
 
   loadSettings();
+  switchTab('role');
   await loadChatHistory();
   setStatus('online');
   initKeyboardDetection();
