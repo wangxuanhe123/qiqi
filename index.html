@@ -1159,7 +1159,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v55</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v56</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1376,7 +1376,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v55</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v56</span>
               </p>
             </div>
           </div>
@@ -1648,6 +1648,48 @@ function migratePerCharState() {
 }
 
 // ============================================================
+// 记忆拆分 / 去重工具（v56：记忆保持一条条，AI 只增不减）
+// ============================================================
+function splitMemoryText(text) {
+  // 把可能是一大段的话按句号/换行/分号/感叹号/问号拆成一条条
+  return (text || '')
+    .split(/[\n。；;！!？?]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function normalizeFact(s) {
+  return (s || '').replace(/[\s，。；、！？!?,.:："“”‘’（）()]/g, '');
+}
+
+function sameFact(a, b) {
+  const na = normalizeFact(a), nb = normalizeFact(b);
+  if (!na || !nb) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+// v56 迁移：把「一大段（句号分隔但没换行）」的旧记忆拆成一条条（幂等，已是一条条时不动）
+function normalizeMemory(charId) {
+  const key = memKey(charId);
+  const raw = localStorage.getItem(key) || '';
+  if (!raw.trim()) return;
+  const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  const expanded = [];
+  for (const line of lines) {
+    const parts = splitMemoryText(line);
+    if (parts.length > 1) expanded.push(...parts);
+    else expanded.push(line);
+  }
+  if (expanded.length !== lines.length) {
+    localStorage.setItem(key, expanded.join('\n'));
+  }
+}
+
+function normalizeAllMemory() {
+  for (const c of chars) normalizeMemory(c.id);
+}
+
+// ============================================================
 // Settings Persistence
 // ============================================================
 function loadSettings() {
@@ -1683,6 +1725,7 @@ function loadSettings() {
   config = chars.find(c => c.id === activeCharId) || chars[0];
 
   migratePerCharState(); // v54：旧全局记忆/剧情状态/摘要 → 按角色分
+  normalizeAllMemory(); // v56：把「一大段」旧记忆拆成一条条（幂等，只拆该拆的）
 
   // ── Other settings ──
   apiKey = localStorage.getItem('qiqi_apikey') || '';
@@ -2827,8 +2870,8 @@ async function ensureCompressed(older, charId) {
 async function extractMemoryFacts(msgs, charName, existingMemory) {
   const convo = msgs.map(m => (m.role === 'user' ? '用户' : charName) + '：' + m.content).join('\n');
   return deepseekPlain([
-    { role: 'system', content: '你是记忆助手。把对话中「长期有用」的信息整理成一份简洁记忆清单，直接输出，每条一行，简洁中文，不要解释，不要用 -、数字或任何序号前缀。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如子女名字、职业）；②不要记一次性场景的过程、某一次对话的具体内容、具体玩法步骤，这些是过程不是记忆；③同一条信息只出现一次，语义相近或说的是同一件事的必须合并成一条，绝不拆成多条（例如"严上司"和"公司职业形象"算同一件事，只写一条）；④整份清单最多 20 条，只留最重要的，宁缺毋滥。' },
-    { role: 'user', content: '现有记忆（供参考，可精简可删改）：\n' + (existingMemory || '（空）') + '\n\n最近对话：\n' + convo }
+    { role: 'system', content: '你是记忆助手。只看「最近对话」，挑出【现有记忆里还没有的】、且长期有用的新信息，逐条输出。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如名字、年龄、职业、家庭关系、身体特征）；②不要记一次性场景的过程、某一次对话的具体内容、具体玩法步骤；③现有记忆里已经有的信息，一律不要重复输出；④一条只写一个事实，每条用换行分隔，绝对不要写成一段话，不要用句号把多条连成一句，不要用 -、数字或序号前缀；⑤如果最近对话里没有任何新的长期信息，就输出空（什么都不写），不要为了凑数硬写。' },
+    { role: 'user', content: '现有记忆（已有的，不要重复、不要改写、不要输出）：\n' + (existingMemory || '（空）') + '\n\n最近对话：\n' + convo }
   ], { maxTokens: 1024, temperature: 0.2 });
 }
 
@@ -2837,15 +2880,20 @@ async function doExtractMemory(charId) {
   if (msgs.length < 4) { showToast('对话太少，聊一会儿再提取吧'); return; }
   showToast('🧠 正在分析最近的对话...');
   const existing = (localStorage.getItem(memKey(charId)) || '').trim();
-  const updated = (await extractMemoryFacts(msgs, config.name, existing)).trim();
-  if (updated && updated !== existing) {
-    localStorage.setItem(memKey(charId), updated);
-    const mi = $('#memoryInput'); if (mi) mi.value = updated;
-    renderMemoryList();
-    showToast('🧠 已自动更新记忆');
-  } else {
-    showToast('🧠 记忆没有需要更新的内容');
+  const added = (await extractMemoryFacts(msgs, config.name, existing)).trim();
+  if (!added) { showToast('🧠 没有新的记忆需要记'); return; }
+  const existingLines = existing ? existing.split('\n').map(s => s.trim()).filter(Boolean) : [];
+  const toAdd = [];
+  for (const line of splitMemoryText(added)) {
+    if (existingLines.some(e => sameFact(e, line))) continue;
+    if (!toAdd.some(t => sameFact(t, line))) toAdd.push(line);
   }
+  if (!toAdd.length) { showToast('🧠 没有新的记忆需要记'); return; }
+  const merged = existingLines.concat(toAdd);
+  localStorage.setItem(memKey(charId), merged.join('\n'));
+  const mi = $('#memoryInput'); if (mi) mi.value = merged.join('\n');
+  renderMemoryList();
+  showToast('🧠 新增 ' + toAdd.length + ' 条记忆');
 }
 
 const MEM_EVERY_TURNS = 15; // run auto-extraction after every N user messages
