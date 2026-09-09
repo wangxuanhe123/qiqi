@@ -1159,7 +1159,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v58</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v59</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1376,7 +1376,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v58</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v59</span>
               </p>
             </div>
           </div>
@@ -1411,6 +1411,13 @@ textarea.setting-input {
         <div class="card-title">💬 说话风格</div>
         <div class="card-body">
           <div class="profile-text" id="profileSpeak"></div>
+        </div>
+      </div>
+      <div class="card" style="overflow:hidden;">
+        <div class="me-item" onclick="openMemoryFromProfile()">
+          <span class="me-item-icon">🧠</span>
+          <div class="me-item-text"><div class="me-item-title">记忆管理</div><div class="me-item-sub">她记住的关于你的事</div></div>
+          <span class="me-item-arrow">›</span>
         </div>
       </div>
       <button class="btn btn-primary" onclick="editProfile()" style="width:100%;">✏️ 编辑设定</button>
@@ -2206,6 +2213,7 @@ function switchTab(tab) {
   $('#navRole').classList.toggle('active', tab === 'role');
   if (tab === 'me') showMeList();
   if (tab === 'role') renderRoleList();
+  if (tab === 'chat') scrollToBottom();
 }
 
 // 我页：显示设置项列表（隐藏子页）
@@ -2487,6 +2495,10 @@ function closeProfile() {
 function editProfile() {
   switchTab('me');
   openSubPage('role');
+}
+function openMemoryFromProfile() {
+  switchTab('me');
+  openSubPage('memory');
 }
 
 // ============================================================
