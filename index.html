@@ -1159,7 +1159,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v57</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v58</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1376,7 +1376,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v57</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v58</span>
               </p>
             </div>
           </div>
@@ -1553,7 +1553,8 @@ async function saveMessage(msg) {
   });
 }
 
-async function loadMessages(limit = 200) {
+async function loadMessages(limit = 200, charId = null) {
+  const cid = charId || activeCharId;
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
@@ -1565,7 +1566,7 @@ async function loadMessages(limit = 200) {
       const cursor = e.target.result;
       if (!cursor) { resolve(msgs); return; }
       const v = cursor.value;
-      if ((v.charId || 'qiqi') === activeCharId) {
+      if ((v.charId || 'qiqi') === cid) {
         if (msgs.length >= limit) { resolve(msgs); return; }
         msgs.unshift(v);
       }
@@ -1629,6 +1630,10 @@ async function importMessages(msgs) {
 function memKey(charId) { return 'qiqi_memory_' + (charId || activeCharId); }
 function storyKey(charId) { return 'qiqi_storystate_' + (charId || activeCharId); }
 function digestKey(charId) { return 'qiqi_digest_' + (charId || activeCharId); }
+function charNameFor(charId) {
+  const c = chars.find(x => x.id === charId);
+  return c ? c.name : (config && config.name ? config.name : '七七');
+}
 function memAutoKey(charId) { return 'qiqi_mem_auto_' + (charId || activeCharId); }
 function isMemAutoOn(charId) { return localStorage.getItem(memAutoKey(charId)) !== '0'; }
 function updateMemToggleUI() {
@@ -1844,7 +1849,10 @@ async function enterChar(id) {
 }
 
 async function editChar(id) {
-  if (id !== activeCharId) await switchChar(id);
+  if (id !== activeCharId) {
+    if (isGenerating) { showToast('⏳ 正在回复中，请稍候再编辑'); return; }
+    await switchChar(id);
+  }
   switchTab('me');
   openSubPage('role');
 }
@@ -1923,6 +1931,13 @@ async function deleteCharacter() {
   chars = chars.filter(c => c.id !== delId);
   persistChars();
   await clearMessagesFor(delId);
+  // 清理该角色的全部 per-char 数据（记忆/剧情状态/摘要/记忆开关/节流计数）
+  localStorage.removeItem(memKey(delId));
+  localStorage.removeItem(storyKey(delId));
+  localStorage.removeItem(digestKey(delId));
+  localStorage.removeItem(memAutoKey(delId));
+  localStorage.removeItem('qiqi_turns_since_mem_' + delId);
+  localStorage.removeItem('qiqi_turns_since_state_' + delId);
   activeCharId = chars[0].id;
   config = chars[0];
   localStorage.setItem('qiqi_active', activeCharId);
@@ -2864,13 +2879,13 @@ async function ensureCompressed(older, charId) {
     if (d.covered >= older.length) return d.text; // digest already up to date
     const newOnes = older.slice(Math.max(0, d.covered));
     if (newOnes.length < COMPRESS_BATCH) return d.text; // not enough new to bother re-summarizing
-    const text = await summarizeHistory(d.text, newOnes, config.name);
+    const text = await summarizeHistory(d.text, newOnes, charNameFor(charId));
     if (text) { d.text = text; d.covered = older.length; saveDigest(d); }
     return d.text;
   }
 
   // First time compressing this character
-  const text = await summarizeHistory('', older, config.name);
+  const text = await summarizeHistory('', older, charNameFor(charId));
   const result = { charId, text, covered: older.length };
   saveDigest(result);
   return text;
@@ -2888,11 +2903,11 @@ async function extractMemoryFacts(msgs, charName, existingMemory) {
 }
 
 async function doExtractMemory(charId) {
-  const msgs = await loadMessages(24);
+  const msgs = await loadMessages(24, charId);
   if (msgs.length < 4) { showToast('对话太少，聊一会儿再提取吧'); return; }
   showToast('🧠 正在分析最近的对话...');
   const existing = (localStorage.getItem(memKey(charId)) || '').trim();
-  const added = (await extractMemoryFacts(msgs, config.name, existing)).trim();
+  const added = (await extractMemoryFacts(msgs, charNameFor(charId), existing)).trim();
   if (!added) { showToast('🧠 没有新的记忆需要记'); return; }
   const existingLines = existing ? existing.split('\n').map(s => s.trim()).filter(Boolean) : [];
   const toAdd = [];
@@ -2911,11 +2926,12 @@ async function doExtractMemory(charId) {
 const MEM_EVERY_TURNS = 15; // run auto-extraction after every N user messages
 async function maybeExtractMemory(charId) {
   if (!isMemAutoOn(charId) || isExtractingMem || !apiKey) return;
-  let n = parseInt(localStorage.getItem('qiqi_turns_since_mem') || '0');
+  const tk = 'qiqi_turns_since_mem_' + charId;
+  let n = parseInt(localStorage.getItem(tk) || '0');
   n = (isNaN(n) ? 0 : n) + 1;
-  localStorage.setItem('qiqi_turns_since_mem', String(n));
+  localStorage.setItem(tk, String(n));
   if (n < MEM_EVERY_TURNS) return;
-  localStorage.setItem('qiqi_turns_since_mem', '0');
+  localStorage.setItem(tk, '0');
   isExtractingMem = true;
   try { await doExtractMemory(charId); }
   catch(e) { console.warn('auto memory extraction failed', e); }
@@ -2943,9 +2959,9 @@ async function extractStoryState(msgs, charName) {
 }
 
 async function doExtractStoryState(charId) {
-  const msgs = await loadMessages(12);
+  const msgs = await loadMessages(12, charId);
   if (msgs.length < 2) return;
-  const state = (await extractStoryState(msgs, config.name)).trim();
+  const state = (await extractStoryState(msgs, charNameFor(charId))).trim();
   if (state) localStorage.setItem(storyKey(charId), state);
 }
 
@@ -2953,11 +2969,12 @@ const STORYSTATE_EVERY_TURNS = 3; // 剧情状态提取频率（每 N 条用户�
 let isExtractingState = false;
 async function maybeExtractStoryState(charId) {
   if (isExtractingState || !apiKey) return;
-  let n = parseInt(localStorage.getItem('qiqi_turns_since_state') || '0');
+  const tk = 'qiqi_turns_since_state_' + charId;
+  let n = parseInt(localStorage.getItem(tk) || '0');
   n = (isNaN(n) ? 0 : n) + 1;
-  localStorage.setItem('qiqi_turns_since_state', String(n));
+  localStorage.setItem(tk, String(n));
   if (n < STORYSTATE_EVERY_TURNS) return;
-  localStorage.setItem('qiqi_turns_since_state', '0');
+  localStorage.setItem(tk, '0');
   isExtractingState = true;
   try { await doExtractStoryState(charId); }
   catch(e) { console.warn('auto story-state extraction failed', e); }
@@ -2968,7 +2985,7 @@ async function maybeExtractStoryState(charId) {
 // Build messages (dedup + timestamp + compression digest)
 // ============================================================
 async function buildMessages({ newUserText = null, historyOverride = null, charId }) {
-  const rawHistory = historyOverride || await loadMessages(500);
+  const rawHistory = historyOverride || await loadMessages(500, charId);
   const windowSize = contextRounds * 2;
 
   // Keep the recent "live" window verbatim; compress anything older into a digest
@@ -3272,7 +3289,7 @@ async function handleImport(event) {
 const BACKUP_KEYS = [
   'qiqi_chars', 'qiqi_active', 'qiqi_apikey', 'qiqi_dark', 'qiqi_temp',
   'qiqi_ctx', 'qiqi_voice', 'qiqi_sfkey', 'qiqi_accent',
-  'qiqi_turns_since_mem', 'qiqi_install_dismissed', 'qiqi_turns_since_state'
+  'qiqi_install_dismissed'
 ];
 
 async function loadAllMessages() {
@@ -3326,7 +3343,7 @@ async function exportBackup() {
     // 按角色分的数据（记忆/剧情状态/摘要），动态枚举所有角色的 key
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && (k.startsWith('qiqi_memory_') || k.startsWith('qiqi_storystate_') || k.startsWith('qiqi_digest_') || k.startsWith('qiqi_mem_auto_'))) {
+      if (k && (k.startsWith('qiqi_memory_') || k.startsWith('qiqi_storystate_') || k.startsWith('qiqi_digest_') || k.startsWith('qiqi_mem_auto_') || k.startsWith('qiqi_turns_since_mem_') || k.startsWith('qiqi_turns_since_state_'))) {
         const v = localStorage.getItem(k);
         if (v != null) ls[k] = v;
       }
