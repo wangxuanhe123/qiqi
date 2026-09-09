@@ -1159,7 +1159,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v56</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v57</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1376,7 +1376,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v56</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v57</span>
               </p>
             </div>
           </div>
@@ -1505,7 +1505,6 @@ let deferredPrompt = null;
 let ctxTarget = null;  // message row being context-menu'd
 let editingMsgId = null;   // message id being edited (edit-then-resend replaces it + downstream)
 let isExtractingMem = false; // guards memory extraction
-let memAuto = true; // 记忆开关：关掉后不再自动提取新记忆
 
 // ── DOM refs ──
 const $ = (s) => document.querySelector(s);
@@ -1630,6 +1629,14 @@ async function importMessages(msgs) {
 function memKey(charId) { return 'qiqi_memory_' + (charId || activeCharId); }
 function storyKey(charId) { return 'qiqi_storystate_' + (charId || activeCharId); }
 function digestKey(charId) { return 'qiqi_digest_' + (charId || activeCharId); }
+function memAutoKey(charId) { return 'qiqi_mem_auto_' + (charId || activeCharId); }
+function isMemAutoOn(charId) { return localStorage.getItem(memAutoKey(charId)) !== '0'; }
+function updateMemToggleUI() {
+  const mt = $('#memToggle');
+  if (!mt) return;
+  if (isMemAutoOn(activeCharId)) mt.classList.add('on');
+  else mt.classList.remove('on');
+}
 
 // v54 迁移：把旧的全局单 key 数据迁到按角色分（旧数据都归七七 'qiqi'）
 function migratePerCharState() {
@@ -1644,6 +1651,12 @@ function migratePerCharState() {
       if (!localStorage.getItem(nu)) localStorage.setItem(nu, v);
       localStorage.removeItem(old);
     }
+  }
+  // v57：全局记忆开关 → 按角色分（旧值归七七）
+  const legacyMemAuto = localStorage.getItem('qiqi_mem_auto');
+  if (legacyMemAuto != null) {
+    if (!localStorage.getItem('qiqi_mem_auto_qiqi')) localStorage.setItem('qiqi_mem_auto_qiqi', legacyMemAuto);
+    localStorage.removeItem('qiqi_mem_auto');
   }
 }
 
@@ -1733,7 +1746,6 @@ function loadSettings() {
   temperature = parseFloat(localStorage.getItem('qiqi_temp') || '0.9');
   contextRounds = parseInt(localStorage.getItem('qiqi_ctx') || '20');
   voiceEnabled = localStorage.getItem('qiqi_voice') === '1';
-  memAuto = localStorage.getItem('qiqi_mem_auto') !== '0';
   sfKey = localStorage.getItem('qiqi_sfkey') || '';
   const accent = localStorage.getItem('qiqi_accent') || 'pink';
 
@@ -1752,7 +1764,7 @@ function loadSettings() {
   $('#temperature').value = temperature;
   $('#contextRounds').value = contextRounds;
   if (voiceEnabled) $('#voiceToggle').classList.add('on');
-  if (memAuto) $('#memToggle').classList.add('on');
+  updateMemToggleUI();
   headerName.textContent = config.name;
   renderAvatar(headerAvatar, config.avatar);
   msgInput.placeholder = '和' + config.name + '说点什么...';
@@ -2049,10 +2061,9 @@ function toggleVoice() {
 }
 
 function toggleMemory() {
-  memAuto = !memAuto;
-  if (memAuto) $('#memToggle').classList.add('on');
-  else $('#memToggle').classList.remove('on');
-  localStorage.setItem('qiqi_mem_auto', memAuto ? '1' : '0');
+  const on = !isMemAutoOn(activeCharId);
+  localStorage.setItem(memAutoKey(activeCharId), on ? '1' : '0');
+  updateMemToggleUI();
 }
 
 // ── 语音：优先硅基流动 CosyVoice2（克隆少御音色），没填 key 退回浏览器 TTS ──
@@ -2220,6 +2231,7 @@ function openSubPage(name) {
     $('#memoryInput').value = localStorage.getItem(memKey()) || '';
     const mt = $('#memoryTitle'); if (mt) mt.textContent = '🧠 记忆（' + config.name + '）';
     renderMemoryList();
+    updateMemToggleUI();
   } else if (name === 'api') {
     $('#apiKeyInput').value = apiKey;
   } else if (name === 'search') {
@@ -2898,7 +2910,7 @@ async function doExtractMemory(charId) {
 
 const MEM_EVERY_TURNS = 15; // run auto-extraction after every N user messages
 async function maybeExtractMemory(charId) {
-  if (!memAuto || isExtractingMem || !apiKey) return;
+  if (!isMemAutoOn(charId) || isExtractingMem || !apiKey) return;
   let n = parseInt(localStorage.getItem('qiqi_turns_since_mem') || '0');
   n = (isNaN(n) ? 0 : n) + 1;
   localStorage.setItem('qiqi_turns_since_mem', String(n));
@@ -3259,7 +3271,7 @@ async function handleImport(event) {
 // ============================================================
 const BACKUP_KEYS = [
   'qiqi_chars', 'qiqi_active', 'qiqi_apikey', 'qiqi_dark', 'qiqi_temp',
-  'qiqi_ctx', 'qiqi_voice', 'qiqi_sfkey', 'qiqi_accent', 'qiqi_mem_auto',
+  'qiqi_ctx', 'qiqi_voice', 'qiqi_sfkey', 'qiqi_accent',
   'qiqi_turns_since_mem', 'qiqi_install_dismissed', 'qiqi_turns_since_state'
 ];
 
@@ -3314,7 +3326,7 @@ async function exportBackup() {
     // 按角色分的数据（记忆/剧情状态/摘要），动态枚举所有角色的 key
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && (k.startsWith('qiqi_memory_') || k.startsWith('qiqi_storystate_') || k.startsWith('qiqi_digest_'))) {
+      if (k && (k.startsWith('qiqi_memory_') || k.startsWith('qiqi_storystate_') || k.startsWith('qiqi_digest_') || k.startsWith('qiqi_mem_auto_'))) {
         const v = localStorage.getItem(k);
         if (v != null) ls[k] = v;
       }
