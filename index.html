@@ -317,6 +317,17 @@ body {
   box-shadow: 0 2px 10px rgba(0,0,0,0.14);
 }
 
+.msg-img {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+.msg-row.user .msg-img { border-color: rgba(255,255,255,0.35); }
+
 .retry-note {
   margin-top: 8px;
   font-size: 12px;
@@ -545,6 +556,33 @@ body {
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
+}
+
+.img-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 0;
+}
+.img-preview img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+.img-preview-del {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 /* ========== Side Panel (Settings) ========== */
@@ -1085,6 +1123,9 @@ textarea.setting-input {
       </div>
     </div>
 
+    <!-- 待发送图片预览 -->
+    <div class="img-preview" id="imagePreview" hidden></div>
+
     <!-- Input Area -->
     <div class="input-area">
       <button class="plus-btn" id="plusBtn" title="更多" onclick="togglePlusMenu(event)">＋</button>
@@ -1094,6 +1135,7 @@ textarea.setting-input {
       </div>
       <button class="send-btn" id="sendBtn" disabled onclick="onSendClick()">➤</button>
       <div class="plus-menu" id="plusMenu" hidden>
+        <div class="plus-menu-item" onclick="pickChatImage()">🖼️ 发图片</div>
         <div class="plus-menu-item" onclick="clearChat()">🗑️ 清空聊天</div>
         <div class="plus-menu-item" onclick="exportChat()">📤 导出聊天记录</div>
         <div class="plus-menu-item" onclick="importChat()">📥 导入聊天记录</div>
@@ -1163,7 +1205,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v61</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v62</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1380,7 +1422,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v61</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v62</span>
               </p>
             </div>
           </div>
@@ -1463,6 +1505,8 @@ textarea.setting-input {
 <input type="file" id="backupFile" accept=".json" style="display:none" onchange="handleBackupImport(event)">
 <!-- Hidden file input for avatar upload -->
 <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
+<!-- Hidden file input for chat image -->
+<input type="file" id="chatImageFile" accept="image/*" style="display:none" onchange="handleChatImage(event)">
 
 <script>
 // ============================================================
@@ -2375,9 +2419,9 @@ function updateSendBtn() {
     sendBtn.classList.add('active', 'stop');
     sendBtn.textContent = '⏹';
   } else {
-    sendBtn.disabled = !hasText;
+    sendBtn.disabled = !(hasText || pendingImage);
     sendBtn.classList.remove('stop');
-    sendBtn.classList.toggle('active', hasText);
+    sendBtn.classList.toggle('active', hasText || pendingImage);
     sendBtn.textContent = '➤';
   }
 }
@@ -2476,6 +2520,58 @@ function handleAvatarUpload(event) {
 }
 
 // ============================================================
+// Chat Image Upload (发图片给七七看)
+// ============================================================
+let pendingImage = null; // 待发送的图片 dataURL（压缩后）
+
+function pickChatImage() {
+  closePlusMenu();
+  $('#chatImageFile').click();
+}
+function handleChatImage(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  showToast('🖼️ 图片处理中...');
+  compressChatImage(file, (dataURL) => {
+    pendingImage = dataURL;
+    renderImagePreview();
+    onInputChange();
+  });
+  event.target.value = '';
+}
+function compressChatImage(file, callback) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxSide = 768; // 最长边 768px，平衡清晰度与 token 成本
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => showToast('❌ 图片读取失败');
+    img.src = e.target.result;
+  };
+  reader.onerror = () => showToast('❌ 图片读取失败');
+  reader.readAsDataURL(file);
+}
+function renderImagePreview() {
+  const box = $('#imagePreview');
+  if (!pendingImage) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = `<img src="${pendingImage}" alt=""><span class="img-preview-del" onclick="clearPendingImage()">✕</span>`;
+}
+function clearPendingImage() {
+  pendingImage = null;
+  renderImagePreview();
+  onInputChange();
+}
+
+// ============================================================
 // Profile Page (点头像进入角色资料页)
 // ============================================================
 function openProfile() {
@@ -2526,7 +2622,11 @@ function renderMessage(msg, animate = true) {
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   bubble.dataset.raw = msg.content;
-  bubble.innerHTML = formatMessage(msg.content);
+  if (msg.image) {
+    bubble.innerHTML = `<img class="msg-img" src="${msg.image}" alt="图片">` + formatMessage(msg.content);
+  } else {
+    bubble.innerHTML = formatMessage(msg.content);
+  }
 
   const col = document.createElement('div');
   col.className = 'msg-col';
@@ -2657,7 +2757,7 @@ async function* streamChat(messages, debug) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-flash',
         messages: messages,
         temperature: temperature,
         max_tokens: 2048,
@@ -2839,7 +2939,7 @@ async function deepseekPlain(messages, { maxTokens = 800, temperature: t = 0.3 }
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-flash',
         messages: messages,
         temperature: t,
         max_tokens: maxTokens,
@@ -3000,7 +3100,17 @@ async function maybeExtractStoryState(charId) {
 // ============================================================
 // Build messages (dedup + timestamp + compression digest)
 // ============================================================
-async function buildMessages({ newUserText = null, historyOverride = null, charId }) {
+function toApiContent(m) {
+  if (m.image) {
+    return [
+      { type: 'text', text: m.content || '' },
+      { type: 'image_url', image_url: { url: m.image } }
+    ];
+  }
+  return m.content || '';
+}
+
+async function buildMessages({ newUserText = null, newUserImage = null, historyOverride = null, charId }) {
   const rawHistory = historyOverride || await loadMessages(500, charId);
   const windowSize = contextRounds * 2;
 
@@ -3015,12 +3125,12 @@ async function buildMessages({ newUserText = null, historyOverride = null, charI
   // Deduplicate consecutive identical messages (prevents the "连着两声" bug on re-send)
   const deduped = [];
   const pending = [
-    ...verbatim.map(m => ({ role: m.role, content: m.content })),
-    ...(newUserText ? [{ role: 'user', content: newUserText }] : [])
+    ...verbatim.map(m => ({ role: m.role, content: toApiContent(m) })),
+    ...((newUserText || newUserImage) ? [{ role: 'user', content: toApiContent({ content: newUserText, image: newUserImage }) }] : [])
   ];
   for (const m of pending) {
     const prev = deduped[deduped.length - 1];
-    if (!prev || prev.role !== m.role || prev.content !== m.content) deduped.push(m);
+    if (!prev || prev.role !== m.role || JSON.stringify(prev.content) !== JSON.stringify(m.content)) deduped.push(m);
   }
   // 把"会变"的内容（剧情状态 / 记忆 / 摘要）统一追加到最后一条消息末尾，
   // 而不是放进系统提示 —— 这样"系统提示 + 历史"构成稳定前缀，DeepSeek 缓存命中率大幅提升。
@@ -3032,7 +3142,13 @@ async function buildMessages({ newUserText = null, historyOverride = null, charI
     if (state) tail.push(`【当前剧情状态（照这个演，不要跳回现实时间或现实场景）】\n${state}`);
     if (mem) tail.push(`【关于老公（用户）的背景信息，供你了解，不必刻意提起】\n${mem}`);
     if (digestText) tail.push(`【你们更早之前的对话摘要（供你回忆上下文，不必逐字复述）】\n${digestText}`);
-    last.content = `${last.content}\n\n${tail.join('\n\n')}`;
+    const suffix = '\n\n' + tail.join('\n\n');
+    if (Array.isArray(last.content)) {
+      // 图片消息：把上下文追加到文本段，别污染 image_url
+      last.content[0].text = (last.content[0].text || '') + suffix;
+    } else {
+      last.content = `${last.content}${suffix}`;
+    }
   }
 
   return [
@@ -3165,7 +3281,8 @@ async function streamReply(messages, sendCharId) {
 
 async function sendMessage() {
   const text = msgInput.value.trim();
-  if (!text || isGenerating) return;
+  const image = pendingImage;
+  if ((!text && !image) || isGenerating) return;
 
   if (!apiKey) {
     showToast('⚠️ 请先在设置中填入 DeepSeek API Key');
@@ -3181,6 +3298,8 @@ async function sendMessage() {
   // Clear input
   msgInput.value = '';
   msgInput.style.height = 'auto';
+  pendingImage = null;
+  renderImagePreview();
   userStopped = false;
   isGenerating = true;
   updateSendBtn();
@@ -3196,8 +3315,8 @@ async function sendMessage() {
   }
 
   // Save and render the user message IMMEDIATELY (so it appears the instant you hit send)
-  const userMsgId = await saveMessage({ role: 'user', content: text, charId: sendCharId });
-  renderMessage({ role: 'user', content: text, id: userMsgId, timestamp: Date.now() });
+  const userMsgId = await saveMessage({ role: 'user', content: text, image: image || undefined, charId: sendCharId });
+  renderMessage({ role: 'user', content: text, image: image || undefined, id: userMsgId, timestamp: Date.now() });
 
   // Show "typing" right away — context compression (if any) runs in the background
   typingBox.style.display = 'block';
@@ -3206,7 +3325,7 @@ async function sendMessage() {
 
   // Build messages + stream reply，用 try/catch 兜底，任何异常都显示出来而不是静默
   try {
-    const messages = await buildMessages({ newUserText: text, charId: sendCharId });
+    const messages = await buildMessages({ newUserText: text, newUserImage: image, charId: sendCharId });
     await streamReply(messages, sendCharId);
   } catch (e) {
     typingBox.style.display = 'none';
