@@ -1205,7 +1205,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v62</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v63</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1422,7 +1422,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v62</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v63</span>
               </p>
             </div>
           </div>
@@ -3110,6 +3110,15 @@ function toApiContent(m) {
   return m.content || '';
 }
 
+// 历史里的图片消息：降级成文字占位，避免每轮都重传 base64 图片（省 token）
+function toHistoryContent(m) {
+  if (m.image) {
+    const txt = (m.content || '').trim();
+    return txt ? txt + '\n[图片]' : '[图片]';
+  }
+  return m.content || '';
+}
+
 async function buildMessages({ newUserText = null, newUserImage = null, historyOverride = null, charId }) {
   const rawHistory = historyOverride || await loadMessages(500, charId);
   const windowSize = contextRounds * 2;
@@ -3125,7 +3134,7 @@ async function buildMessages({ newUserText = null, newUserImage = null, historyO
   // Deduplicate consecutive identical messages (prevents the "连着两声" bug on re-send)
   const deduped = [];
   const pending = [
-    ...verbatim.map(m => ({ role: m.role, content: toApiContent(m) })),
+    ...verbatim.map(m => ({ role: m.role, content: toHistoryContent(m) })),
     ...((newUserText || newUserImage) ? [{ role: 'user', content: toApiContent({ content: newUserText, image: newUserImage }) }] : [])
   ];
   for (const m of pending) {
