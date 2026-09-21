@@ -1246,7 +1246,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v65</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v66</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1464,7 +1464,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v65</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v66</span>
               </p>
             </div>
           </div>
@@ -3079,7 +3079,7 @@ async function ensureCompressed(older, charId) {
 async function extractMemoryFacts(msgs, charName, existingMemory) {
   const convo = msgs.map(m => (m.role === 'user' ? '用户' : charName) + '：' + m.content).join('\n');
   return deepseekPlain([
-    { role: 'system', content: '你是记忆助手。只看「最近对话」，挑出【现有记忆里还没有的】、且长期有用的新信息，逐条输出。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如名字、年龄、职业、家庭关系、身体特征）；②绝对不要记：某一次性经历、某次玩法的具体细节、某次对话的经过、当时的情绪反应——这些都是一次性的，过几天就没用了；③现有记忆里已经有的信息，一律不要重复输出；④【合并优先】同一次对话、同一件事衍生出的多条信息，必须合并成一条完整表述，绝对不能拆成多条。只有完全不相干的事才分成两行；⑤一条记忆要写得像一个"关于这个人的结论"，而不是一句流水账。每条用换行分隔，不要写成一大段，不要用 -、数字或序号前缀；⑥如果最近对话里没有任何新的长期信息，就输出空（什么都不写），不要为了凑数硬写。\n\n反例（❌ 不要这样拆成多条）：\n她自己买过跳蛋\n她认为跳蛋和飞机杯性质不同\n她拒绝推荐飞机杯品牌\n正确做法（✅ 合并成一条）：\n对老公有占有欲，介意他自己用情趣用品解决' },
+    { role: 'system', content: '你是记忆助手。只看「最近对话」，挑出【现有记忆里还没有的】、且长期有用的新信息，逐条输出。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如名字、年龄、职业、家庭关系）、稳定的身体属性（身高、体型、体质、敏感度）；②绝对不要记：某一次性经历（如"有过肛交经历"）、某次玩法的具体动作清单、某次对话的经过、当时的情绪反应——这些都是一次性的，过几天就没用了；③现有记忆里已经有的信息，一律不要重复输出；④【合并优先】同一次对话、同一件事衍生出的多条信息，必须合并成一条完整表述，绝对不能拆成多条。只有完全不相干的事才分成两行；⑤一条记忆要写得像一个"关于这个人的结论"，而不是一句流水账。每条用换行分隔，不要写成一大段，不要用 -、数字或序号前缀；⑥如果最近对话里没有任何新的长期信息，就输出空（什么都不写），不要为了凑数硬写。\n\n反例（❌ 不要这样拆成多条）：\n她自己买过跳蛋\n她认为跳蛋和飞机杯性质不同\n她拒绝推荐飞机杯品牌\n正确做法（✅ 合并成一条）：\n对老公有占有欲，介意他自己用情趣用品解决' },
     { role: 'user', content: '现有记忆（已有的，不要重复、不要改写、不要输出）：\n' + (existingMemory || '（空）') + '\n\n最近对话：\n' + convo }
   ], { maxTokens: 1024, temperature: 0.2 });
 }
@@ -3136,7 +3136,7 @@ let pendingOrganized = null; // 待确认的整理结果
 
 async function compactMemoryFacts(existingMemory) {
   const raw = await deepseekPlain([
-    { role: 'system', content: '你是记忆整理助手。下面是关于「老公」的全部记忆条目，请把它们精简整理。规则：①合并重复、或讲同一件事的条目，一条要像一个"关于这个人的结论"；②删掉一次性经历、某次玩法细节、某次对话的过程——这些没有长期价值；③删掉过于琐碎、看不出长期意义的条目；④保留所有真正长期有用的信息：身份背景、性格、固定偏好、忌讳、重要关系、身体特征；⑤绝对不要编造原文里没有的信息，也不要把没说过的当成事实；⑥每条一行，不要编号、不要 - 或数字前缀，不要写成一大段；⑦整理后的条数应当明显少于原文。直接输出整理后的条目，不要任何解释、不要开场白。' },
+    { role: 'system', content: '你是记忆整理助手。下面是关于「老公」的全部记忆条目，请把它们精简整理。规则：①合并重复、或讲同一件事的条目，一条要像一个"关于这个人的结论"；②删掉一次性经历、某次对话的过程、当时的具体情节——这些没有长期价值；③【重要·保护手写条目】这些记忆里有用户自己精心添加的，凡是拿不准的一律保留，宁可少删也绝不误删；只有明确属于"一次性经过叙述"的才删；④性生活类只删"某次做过什么"这种经历叙述（如"有过肛交经历"），但稳定的体质与倾向必须保留（如"敏感体质""性欲强""酒后更放得开"）；⑤保留所有真正长期有用的信息：身份背景、性格、固定偏好、忌讳、重要关系、稳定的身体属性（身高、体型、体质等）；⑥绝对不要编造原文里没有的信息，也不要把没说过的当成事实；⑦每条一行，不要编号、不要 - 或数字前缀，不要写成一大段；⑧整理后的条数应当少于原文。直接输出整理后的条目，不要任何解释、不要开场白。' },
     { role: 'user', content: existingMemory }
   ], { maxTokens: 1500, temperature: 0.2 });
   const out = [];
