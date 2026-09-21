@@ -1037,6 +1037,47 @@ textarea.setting-input {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* 记忆整理预览弹窗 */
+.organize-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 400;
+  display: none;
+}
+.organize-overlay.open { display: block; }
+.organize-panel {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 420px);
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 18px 16px 14px;
+}
+.organize-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.organize-sub { font-size: 13px; color: var(--text-secondary); margin: 4px 0 10px; }
+.organize-sub b { color: var(--accent); }
+.organize-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.organize-list > * { flex-shrink: 0; }
+.organize-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
 /* Install banner */
 .install-banner {
   background: linear-gradient(135deg, var(--accent2), var(--accent));
@@ -1205,7 +1246,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v63</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v64</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1296,6 +1337,7 @@ textarea.setting-input {
               </div>
               <div class="setting-row">
                 <button class="btn btn-outline btn-sm" onclick="extractMemoryNow()">🧠 立即提取记忆</button>
+                <button class="btn btn-outline btn-sm" onclick="organizeMemory()">🧹 整理记忆</button>
                 <button class="btn btn-outline btn-sm" onclick="clearMemory()">🗑 清空记忆</button>
               </div>
               <p class="opt-sub">每条记忆可单独删除。这里的内容会告诉每一个角色，她们都会记住你。也可以点按钮让七七自动从最近对话提取关于你的信息。</p>
@@ -1422,7 +1464,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v63</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v64</span>
               </p>
             </div>
           </div>
@@ -1498,6 +1540,19 @@ textarea.setting-input {
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<!-- 记忆整理预览 -->
+<div class="organize-overlay" id="organizeOverlay" onclick="closeOrganizePreview()">
+  <div class="organize-panel" onclick="event.stopPropagation()">
+    <div class="organize-title">🧹 整理预览</div>
+    <div class="organize-sub">整理前 <b id="organizeBefore">-</b> 条 → 整理后 <b id="organizeAfter">-</b> 条</div>
+    <div class="organize-list" id="organizeList"></div>
+    <div class="organize-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeOrganizePreview()">取消（不改动）</button>
+      <button class="btn btn-primary btn-sm" onclick="applyOrganizedMemory()">✓ 用整理后的</button>
+    </div>
+  </div>
+</div>
 
 <!-- Hidden file input for import -->
 <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
@@ -1724,11 +1779,22 @@ function migratePerCharState() {
 // 记忆拆分 / 去重工具（v56：记忆保持一条条，AI 只增不减）
 // ============================================================
 function splitMemoryText(text) {
-  // 把可能是一大段的话按句号/换行/分号/感叹号/问号拆成一条条
-  return (text || '')
-    .split(/[\n。；;！!？?]+/)
-    .map(s => s.trim())
-    .filter(Boolean);
+  // v64：以「换行」为主要分隔（让 AI 自己决定分行），只有过长的行才按句号再拆
+  // —— 之前无脑按句号拆，会把同一件事的多个侧面拆成好几条记忆
+  const out = [];
+  for (const line of (text || '').split('\n')) {
+    const s = line.trim();
+    if (!s) continue;
+    if (s.length > 60) {
+      for (const p of s.split(/[。；;！!？?]+/)) {
+        const t = p.trim();
+        if (t) out.push(t);
+      }
+    } else {
+      out.push(s);
+    }
+  }
+  return out;
 }
 
 function normalizeFact(s) {
@@ -3013,7 +3079,7 @@ async function ensureCompressed(older, charId) {
 async function extractMemoryFacts(msgs, charName, existingMemory) {
   const convo = msgs.map(m => (m.role === 'user' ? '用户' : charName) + '：' + m.content).join('\n');
   return deepseekPlain([
-    { role: 'system', content: '你是记忆助手。只看「最近对话」，挑出【现有记忆里还没有的】、且长期有用的新信息，逐条输出。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如名字、年龄、职业、家庭关系、身体特征）；②不要记一次性场景的过程、某一次对话的具体内容、具体玩法步骤；③现有记忆里已经有的信息，一律不要重复输出；④一条只写一个事实，每条用换行分隔，绝对不要写成一段话，不要用句号把多条连成一句，不要用 -、数字或序号前缀；⑤如果最近对话里没有任何新的长期信息，就输出空（什么都不写），不要为了凑数硬写。' },
+    { role: 'system', content: '你是记忆助手。只看「最近对话」，挑出【现有记忆里还没有的】、且长期有用的新信息，逐条输出。规则：①只记稳定的长期信息——人物关系、身份背景、性格、固定偏好、重要长期设定（如名字、年龄、职业、家庭关系、身体特征）；②绝对不要记：某一次性经历、某次玩法的具体细节、某次对话的经过、当时的情绪反应——这些都是一次性的，过几天就没用了；③现有记忆里已经有的信息，一律不要重复输出；④【合并优先】同一次对话、同一件事衍生出的多条信息，必须合并成一条完整表述，绝对不能拆成多条。只有完全不相干的事才分成两行；⑤一条记忆要写得像一个"关于这个人的结论"，而不是一句流水账。每条用换行分隔，不要写成一大段，不要用 -、数字或序号前缀；⑥如果最近对话里没有任何新的长期信息，就输出空（什么都不写），不要为了凑数硬写。\n\n反例（❌ 不要这样拆成多条）：\n她自己买过跳蛋\n她认为跳蛋和飞机杯性质不同\n她拒绝推荐飞机杯品牌\n正确做法（✅ 合并成一条）：\n对老公有占有欲，介意他自己用情趣用品解决' },
     { role: 'user', content: '现有记忆（已有的，不要重复、不要改写、不要输出）：\n' + (existingMemory || '（空）') + '\n\n最近对话：\n' + convo }
   ], { maxTokens: 1024, temperature: 0.2 });
 }
@@ -3061,6 +3127,76 @@ async function extractMemoryNow() {
   try { await doExtractMemory(activeCharId); }
   catch(e) { showToast('❌ 提取失败: ' + (e.message || e)); }
   finally { isExtractingMem = false; }
+}
+
+// ============================================================
+// 整理记忆（v64：手动触发，先看「整理前→整理后」预览，确认才保存）
+// ============================================================
+let pendingOrganized = null; // 待确认的整理结果
+
+async function compactMemoryFacts(existingMemory) {
+  const raw = await deepseekPlain([
+    { role: 'system', content: '你是记忆整理助手。下面是关于「老公」的全部记忆条目，请把它们精简整理。规则：①合并重复、或讲同一件事的条目，一条要像一个"关于这个人的结论"；②删掉一次性经历、某次玩法细节、某次对话的过程——这些没有长期价值；③删掉过于琐碎、看不出长期意义的条目；④保留所有真正长期有用的信息：身份背景、性格、固定偏好、忌讳、重要关系、身体特征；⑤绝对不要编造原文里没有的信息，也不要把没说过的当成事实；⑥每条一行，不要编号、不要 - 或数字前缀，不要写成一大段；⑦整理后的条数应当明显少于原文。直接输出整理后的条目，不要任何解释、不要开场白。' },
+    { role: 'user', content: existingMemory }
+  ], { maxTokens: 1500, temperature: 0.2 });
+  const out = [];
+  for (const line of splitMemoryText(raw)) {
+    const t = line.replace(/^\s*(?:[-•·*]|\d+[.、)])\s*/, '').trim();
+    if (t && !out.some(o => sameFact(o, t))) out.push(t);
+  }
+  return out;
+}
+
+async function organizeMemory() {
+  if (!apiKey) { showToast('⚠️ 请先设置 API Key'); return; }
+  if (isExtractingMem) { showToast('⏳ 正在处理中，请稍候'); return; }
+  const existing = (localStorage.getItem(memKey(activeCharId)) || '').trim();
+  if (!existing) { showToast('还没有记忆可以整理'); return; }
+  isExtractingMem = true;
+  showToast('🧹 正在整理记忆...');
+  try {
+    const after = await compactMemoryFacts(existing);
+    if (!after.length) { showToast('🧹 整理没结果，记忆保持不变'); return; }
+    const before = existing.split('\n').map(s => s.trim()).filter(Boolean);
+    if (after.length >= before.length) { showToast('🧹 已经挺精简了，没有可整理的'); return; }
+    pendingOrganized = { charId: activeCharId, lines: after }; // 记下发起时的角色，防止预览期间切角色写错人
+    $('#organizeBefore').textContent = before.length;
+    $('#organizeAfter').textContent = after.length;
+    const box = $('#organizeList');
+    box.innerHTML = '';
+    for (const t of after) {
+      const d = document.createElement('div');
+      d.className = 'memory-item';
+      d.textContent = t;
+      box.appendChild(d);
+    }
+    $('#organizeOverlay').classList.add('open');
+  } catch (e) {
+    showToast('❌ 整理失败: ' + (e.message || e));
+  } finally {
+    isExtractingMem = false;
+  }
+}
+
+function closeOrganizePreview() {
+  $('#organizeOverlay').classList.remove('open');
+  pendingOrganized = null;
+}
+
+function applyOrganizedMemory() {
+  if (!pendingOrganized) return;
+  const { charId, lines } = pendingOrganized;
+  const text = lines.join('\n');
+  localStorage.setItem(memKey(charId), text);
+  // 只有还停在这个角色的记忆页时才刷新界面，否则会串显示
+  if (charId === activeCharId) {
+    const mi = $('#memoryInput');
+    if (mi) mi.value = text;
+    renderMemoryList();
+  }
+  const n = lines.length;
+  closeOrganizePreview();
+  showToast('🧹 记忆已整理为 ' + n + ' 条');
 }
 
 // ============================================================
