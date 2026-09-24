@@ -1247,7 +1247,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v69</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v70</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1465,7 +1465,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v69</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v70</span>
               </p>
             </div>
           </div>
@@ -2798,6 +2798,35 @@ const PERF_RULES = `【表演准则（始终遵守，优先级高于你之前的
 ②拒绝重复：把你前几轮的回复当成"已经用过的素材库"——里面**任何**句子、短语、身体反应、比喻、拟声词、括号旁白都算用过了，一条都不许再用。**不只是下面举的例子，是全部**。下面这些只是你最常犯的（列出来给你提个醒）：指尖攥着床单、小穴一阵阵绞紧、水一股股往外涌、腿抖得撑不住、舌头收不回去、屁股翘着迎你、拿"哼……"开头。每一轮都要换新的身体反应、新的角度、新的说法；宁可写少一点，也不要拿旧句子凑数。
 ③保持强度：不要因为延续之前的回复而变得平淡、省事——每一轮都要像第一次那样放开、露骨、有新鲜感；该露骨的场景就一路露骨到底，不要中途变含蓄。`;
 
+// v70：动态禁句表 —— PERF_RULES 里那串例子是写死的（只会挡住那几句），
+// 所以她换一批新话重复就失效了。这里改成"跟着她实际的输出走"：
+// 从她最近两轮的括号旁白里机械切出短语，本轮直接禁用，下轮再按新的输出重新生成。
+// 只抽【括号旁白】不抽台词 —— 台词是剧情（她答应过什么、说过什么），换掉会串戏；旁白是描写，换个说法不影响剧情。
+// 纯字符串处理，不多花 API 调用；注入位置是本来就缓存不命中的消息尾部，不损伤缓存前缀。
+function extractUsedPhrases(replies) {
+  const seen = new Map(); // 短语 → { count: 出现次数, last: 最后一次出现在第几条 }
+  replies.forEach((text, ri) => {
+    if (!text || typeof text !== 'string') return;
+    const parens = text.match(/[（(][^）)]{4,}[）)]/g) || [];
+    for (const p of parens) {
+      const body = p.slice(1, -1);
+      for (const seg of body.split(/[，,、。；;]/)) {
+        const t = seg.trim();
+        if (t.length < 4 || t.length > 14) continue;
+        const cur = seen.get(t);
+        if (cur) { cur.count++; cur.last = ri; }
+        else seen.set(t, { count: 1, last: ri });
+      }
+    }
+  });
+  // 出现两次以上的排最前（那是她真正在复用的套路）；
+  // 同分时"越新的越优先"——她最容易抄的就是刚写完的那一轮，别被更旧的一轮挤掉名额。
+  return [...seen.entries()]
+    .sort((a, b) => (b[1].count - a[1].count) || (b[1].last - a[1].last))
+    .map(x => x[0])
+    .slice(0, 12);
+}
+
 function buildSystemPrompt() {
   // 只放"永不变化"的内容：人设 + 说话风格 + 背景 + 角色锁定。
   // 会变的（记忆 / 摘要 / 时间）统一放到消息末尾，见 buildMessages —— 保证 DeepSeek 缓存前缀稳定、提高命中率、省钱。
@@ -3340,6 +3369,9 @@ async function buildMessages({ newUserText = null, newUserImage = null, historyO
     if (digestText) tail.push(`【你们更早之前的对话摘要（供你回忆上下文，不必逐字复述）】\n${digestText}`);
     // v68：准则放最后 —— 离生成最近，权重最高，专门用来压住"抄自己上一轮"
     tail.push(PERF_RULES);
+    // v70：动态禁句表，紧跟在准则之后（最靠后 = 最具体、最贴生成点）
+    const banned = extractUsedPhrases(deduped.filter(m => m.role === 'assistant').slice(-2).map(m => m.content));
+    if (banned.length) tail.push(`【本轮禁用（你上两轮刚写过的，一个字都别再出现，换新的说法写同样的意思）】\n${banned.join('、')}`);
     const suffix = '\n\n' + tail.join('\n\n');
     if (Array.isArray(last.content)) {
       // 图片消息：把上下文追加到文本段，别污染 image_url
