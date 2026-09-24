@@ -1247,7 +1247,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v67</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v68</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1465,7 +1465,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v67</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v68</span>
               </p>
             </div>
           </div>
@@ -2789,6 +2789,15 @@ function renderGreeting() {
 // ============================================================
 // Build System Prompt
 // ============================================================
+// v68：反重复 / 语气锚定 / 保持强度。
+// 长对话里模型的通病是"抄自己"——上下文里她自己的旧回复离生成点最近，人设被稀释，
+// 于是逐字重复上一轮的描写、语气被最近几轮带跑、越聊越平淡。
+// 这段规则同时在两处生效：系统提示（底层约束）+ 消息末尾（临场提醒，离生成最近、权重最高）。
+const PERF_RULES = `【表演准则（始终遵守，优先级高于你之前的回复）】
+①语气锚定：你的默认语气以人设为准。人设里若按场景切换语气（日常温柔／床上放开），场景一结束就必须回到默认语气，绝不能把某个场景的腔调带进别的场景；一旦发现自己说话不像人设里那个人了（变粗、变冲、变冷淡、像换了个人），立刻掰回来。
+②拒绝重复：绝不复用你前几轮已经写过的描写、句式、比喻和拟声词。尤其别再用这些（只是举例，凡是你写过的都算）：指尖攥着床单、小穴一阵阵绞紧、水一股股往外涌、腿抖得撑不住、舌头收不回去、屁股翘着迎你、拿"哼……"开头。每一轮都要换新的身体反应、新的角度、新的说法；宁可写少一点，也不要拿旧句子凑数。
+③保持强度：不要因为延续之前的回复而变得平淡、省事——每一轮都要像第一次那样放开、露骨、有新鲜感；该露骨的场景就一路露骨到底，不要中途变含蓄。`;
+
 function buildSystemPrompt() {
   // 只放"永不变化"的内容：人设 + 说话风格 + 背景 + 角色锁定。
   // 会变的（记忆 / 摘要 / 时间）统一放到消息末尾，见 buildMessages —— 保证 DeepSeek 缓存前缀稳定、提高命中率、省钱。
@@ -2802,7 +2811,9 @@ ${config.speakingStyle}
 
 另外：剧情时间线以老公在对话里写的时间为准（比如老公写"（次日）"就是到了第二天），跟着剧情时间走，不要跳回现实里的真实日期和时间。
 
-另外：你的思考过程对方看不到，绝不能只思考、不写正文。每次都必须把要说的话完整写在正文里，哪怕只是一个语气词、一个表情（比如 😭、💦、…）也要写出来。`
+另外：你的思考过程对方看不到，绝不能只思考、不写正文。每次都必须把要说的话完整写在正文里，哪怕只是一个语气词、一个表情（比如 😭、💦、…）也要写出来。
+
+${PERF_RULES}`
 }
 
 // ============================================================
@@ -3085,6 +3096,35 @@ async function extractMemoryFacts(msgs, charName, existingMemory) {
   ], { maxTokens: 1024, temperature: 0.2 });
 }
 
+// v68：语义查重。sameFact 只能比字面（"七七是杭州人" vs "七七是杭州姑娘" 判不出来），
+// 所以再用一次便宜模型调用，让它判断候选里有哪几条是已有记忆**真的没覆盖到**的。
+// 只做"筛掉重复"，不做"改写"：输出编号 → 映射回原文，绝不丢信息。
+// 出错就放行全部（宁可多一条，也不把新信息吞掉）。
+async function filterNewFacts(existingMemory, candidates) {
+  if (!candidates.length) return [];
+  if (!existingMemory.trim()) return candidates;
+  try {
+    const raw = await deepseekPlain([
+      { role: 'system', content: `你在做记忆查重。给你两段：【已有记忆】和带编号的【候选新记忆】。
+请判断每一条候选，是不是已有记忆**确实没有覆盖到**的新信息。
+判定标准：
+①已有记忆已经表达了同一个意思，就算用词不同也算重复（例：已有"七七是杭州人"，候选"七七是杭州姑娘"→重复）；
+②已有记忆只覆盖了一部分，而候选带来了新的具体细节，算新（例：已有"喜欢猫"，候选"养了只叫团子的布偶猫"→新）；
+③只是换个说法、或写得更啰嗦但没有新内容，算重复；
+④拿不准的一律按重复处理（宁可漏记，也不要重复）。
+只输出判定为【新】的候选编号，用半角逗号分隔（例：1,3）。如果一条都不新，只输出：无
+除了编号什么都不要输出。` },
+      { role: 'user', content: `【已有记忆】\n${existingMemory}\n\n【候选新记忆】\n${candidates.map((c, i) => `${i + 1}. ${c}`).join('\n')}` }
+    ], { maxTokens: 300, temperature: 0.1 });
+    if (/^\s*无\s*$/.test(raw.trim())) return [];
+    const nums = (raw.match(/\d+/g) || []).map(Number);
+    return candidates.filter((_, i) => nums.includes(i + 1));
+  } catch (e) {
+    console.warn('语义查重失败，跳过（全部放行）', e);
+    return candidates;
+  }
+}
+
 async function doExtractMemory(charId) {
   const msgs = await loadMessages(24, charId);
   if (msgs.length < 4) { showToast('对话太少，聊一会儿再提取吧'); return; }
@@ -3099,11 +3139,14 @@ async function doExtractMemory(charId) {
     if (!toAdd.some(t => sameFact(t, line))) toAdd.push(line);
   }
   if (!toAdd.length) { showToast('🧠 没有新的记忆需要记'); return; }
-  const merged = existingLines.concat(toAdd);
+  // v68：字面查重之后再过一遍语义查重（只筛不写，不会误删已有记忆）
+  const trulyNew = await filterNewFacts(existing, toAdd);
+  if (!trulyNew.length) { showToast('🧠 没有新的记忆需要记'); return; }
+  const merged = existingLines.concat(trulyNew);
   localStorage.setItem(memKey(charId), merged.join('\n'));
   const mi = $('#memoryInput'); if (mi) mi.value = merged.join('\n');
   renderMemoryList();
-  showToast('🧠 新增 ' + toAdd.length + ' 条记忆');
+  showToast('🧠 新增 ' + trulyNew.length + ' 条记忆');
 }
 
 const MEM_EVERY_TURNS = 15; // run auto-extraction after every N user messages
@@ -3286,8 +3329,10 @@ async function buildMessages({ newUserText = null, newUserImage = null, historyO
     const state = (localStorage.getItem(storyKey(charId)) || '').trim();
     const tail = [];
     if (state) tail.push(`【当前剧情状态（照这个演，不要跳回现实时间或现实场景）】\n${state}`);
-    if (mem) tail.push(`【关于老公（用户）的背景信息，供你了解，不必刻意提起】\n${mem}`);
+    if (mem) tail.push(`【关于老公（用户）的背景信息，供你了解，不必刻意提起；这些只是背景资料，不代表你此刻的语气】\n${mem}`);
     if (digestText) tail.push(`【你们更早之前的对话摘要（供你回忆上下文，不必逐字复述）】\n${digestText}`);
+    // v68：准则放最后 —— 离生成最近，权重最高，专门用来压住"抄自己上一轮"
+    tail.push(PERF_RULES);
     const suffix = '\n\n' + tail.join('\n\n');
     if (Array.isArray(last.content)) {
       // 图片消息：把上下文追加到文本段，别污染 image_url
