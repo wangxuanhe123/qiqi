@@ -1247,7 +1247,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v73</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v74</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1465,7 +1465,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v73</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v74</span>
               </p>
             </div>
           </div>
@@ -3388,6 +3388,28 @@ function toHistoryContent(m) {
   return m.content || '';
 }
 
+// ── v74：结构防漂 —— 历史里只留她的"台词"，剃掉括号旁白 ──
+// 长对话里模型抄的是自己上一轮，而它最容易抄、也最容易走样的就是旁白
+// （同一批小动作：声音越来越小 / 吸吸鼻子 / 攥衣角，反复用）。
+// 把更早历史里的旁白剃掉，她能模仿的只剩"跟你说话"这一面 ——
+// 自模仿就从"越抄越飘"变成"越抄越像她"。
+// 只剃她的，不剃用户的：用户写的是剧情（谁在哪、发生了什么），剃了会串戏。
+const NARRATION_KEEP_TAIL = 2; // 最近 2 条她的回复原样保留（那是"她此刻的心情"，要连续）
+// 只匹配【单行、不嵌套括号】的旁白 —— 宁可漏剃，也绝不误吞跨行的台词。
+const NARRATION_RE = /[（(][^（()）\n]{0,200}[）)]/g;
+function stripNarration(text) {
+  if (!text || typeof text !== 'string') return text;
+  if (text.indexOf('（') === -1 && text.indexOf('(') === -1) return text;
+  const out = text
+    .replace(NARRATION_RE, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+  // 整条都是旁白、没有台词 → 原样保留：历史里不能出现空消息，
+  // 而且这种句子（"（只是紧紧抱着你，不说话）"）通常是关键的情绪节点，丢了可惜。
+  return out || text;
+}
+
 async function buildMessages({ newUserText = null, newUserImage = null, historyOverride = null, charId }) {
   const rawHistory = historyOverride || await loadMessages(500, charId);
   const windowSize = contextRounds * 2;
@@ -3402,8 +3424,22 @@ async function buildMessages({ newUserText = null, newUserImage = null, historyO
 
   // Deduplicate consecutive identical messages (prevents the "连着两声" bug on re-send)
   const deduped = [];
+  // v74：历史里她的旁白只留最近 NARRATION_KEEP_TAIL 条，更早的一律剃成纯台词。
+  // （最近两条不剃：① 它们是她此刻的情绪，要连续；② v70 的动态禁句表正好就是盯这两条，
+  //   两者分工——最近的用"禁句表"挡，更早的用"剃旁白"防，不重叠。）
+  const asstIdx = [];
+  verbatim.forEach((m, i) => { if (m.role === 'assistant') asstIdx.push(i); });
+  const keepFrom = asstIdx.length > NARRATION_KEEP_TAIL
+    ? asstIdx[asstIdx.length - NARRATION_KEEP_TAIL]
+    : -1; // 不足 2 条就全留
   const pending = [
-    ...verbatim.map(m => ({ role: m.role, content: toHistoryContent(m) })),
+    ...verbatim.map((m, i) => {
+      const content = toHistoryContent(m);
+      if (m.role === 'assistant' && i < keepFrom) {
+        return { role: m.role, content: stripNarration(content) };
+      }
+      return { role: m.role, content };
+    }),
     ...((newUserText || newUserImage) ? [{ role: 'user', content: toApiContent({ content: newUserText, image: newUserImage }) }] : [])
   ];
   for (const m of pending) {
