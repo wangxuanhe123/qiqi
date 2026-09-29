@@ -1247,7 +1247,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v70</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v71</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1465,7 +1465,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v70</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v71</span>
               </p>
             </div>
           </div>
@@ -2840,7 +2840,7 @@ ${config.speakingStyle}
 
 另外：剧情时间线以老公在对话里写的时间为准（比如老公写"（次日）"就是到了第二天），跟着剧情时间走，不要跳回现实里的真实日期和时间。
 
-另外：你的思考过程对方看不到，绝不能只思考、不写正文。每次都必须把要说的话完整写在正文里，哪怕只是一个语气词、一个表情（比如 😭、💦、…）也要写出来。
+另外：你的思考过程对方看不到，绝不能只思考、不写正文。每一次回复都必须有**实质的正文**——旁白、动作、或者你要说的话，至少得有一样。**绝对不许只回一个表情或一个语气词就完事**（比如光发一个 😭、💦、或者只有"嗯"两个字，这不叫回复）。表情和语气词只能用来给正文添味道，不能拿来代替正文。
 
 ${PERF_RULES}`
 }
@@ -3808,8 +3808,11 @@ async function loadChatHistory() {
 function openCtxMenu(row, x, y) {
   ctxTarget = row;
   const isUser = row.classList.contains('user');
+  // v71：没有真实 id 的气泡（开场白、网络失败的占位回复、被掐断没存下的半截回复）点了
+  // 「重新生成」只会弹一句骗人的报错——直接不显示这个按钮。朗读/删除照旧可用。
+  const canRegen = !isUser && !isNaN(parseInt(row.dataset.msgId));
   $('#ctxEdit').style.display = isUser ? 'flex' : 'none';
-  $('#ctxRegen').style.display = isUser ? 'none' : 'flex';
+  $('#ctxRegen').style.display = canRegen ? 'flex' : 'none';
   const menu = $('#ctxMenu');
   const overlay = $('#ctxOverlay');
 
@@ -3943,7 +3946,7 @@ async function regenerateFrom() {
   if (!ctxTarget) return;
   const id = parseInt(ctxTarget.dataset.msgId);
   closeCtxMenu();
-  if (isNaN(id)) { showToast('无法重新生成该消息'); return; }
+  if (isNaN(id)) { showToast('这条消息没存过，不能重新生成'); return; }
   await regenerateFromAssistant(id);
 }
 
