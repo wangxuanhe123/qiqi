@@ -1,5 +1,5 @@
 // Service Worker for 七七 · AI伴侣
-const CACHE_NAME = 'qiqi-v77';
+const CACHE_NAME = 'qiqi-v2';   // 跟 index.html 的 APP_VERSION 同一个号，部署时一起改
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json'
@@ -53,13 +53,16 @@ function networkFirstWithTimeout(request) {
 
     fetch(request, { cache: 'reload' })
       .then((response) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
+        // 先刷新缓存，再判断要不要用这个响应 —— 顺序很重要。
+        // 如果已经超时、上面用旧缓存兜过底了（手机网络慢时天天发生），这次晚到的响应至少能把缓存更新掉，
+        // 于是"下一次打开"就是新的。以前这里先 return 再 put，晚到的响应被直接丢掉，旧页面会一直留着。
         if (response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         resolve(response);
       })
       .catch(() => {
