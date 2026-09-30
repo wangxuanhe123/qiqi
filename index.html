@@ -1247,7 +1247,12 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · <span id="appVerAbout">v77</span></div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · <span id="appVerAbout">v2</span></div></div>
+          <span class="me-item-arrow">›</span>
+        </div>
+        <div class="me-item" onclick="forceUpdate()">
+          <span class="me-item-icon">🔄</span>
+          <div class="me-item-text"><div class="me-item-title">检查更新</div><div class="me-item-sub">清缓存、重新拉最新版（改过网页之后用这个）</div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1465,7 +1470,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v77</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v2</span>
               </p>
             </div>
           </div>
@@ -1637,10 +1642,11 @@ const DEFAULT_CHARS = [
 
 const CHARS_VERSION = 6;
 
-// v77：界面上显示的版本号只有一个源头，就是这里。
+// v2（2026-09-30 重新起算）：界面上显示的版本号只有一个源头，就是这里。
 // 以前「我 → 关于」和设置页底部是两处写死的文字，每次部署只改 sw.js 的 CACHE_NAME，
-// 这两处就永远停在旧版本上（一直到 v76 还显示着 v75）。以后要升版本，改这一行 + sw.js 的 CACHE_NAME。
-const APP_VERSION = 'v77';
+// 这两处就永远停在旧版本上（一直挂到 v75）。现在两处都从它渲染。
+// 注意：这里跟 sw.js 的 CACHE_NAME 是同一个号（qiqi-v2），部署时一起改。
+const APP_VERSION = 'v2';
 
 // ── State ──
 let chars = [];
@@ -4100,12 +4106,33 @@ function initKeyboardDetection() {
 // ============================================================
 // Init
 // ============================================================
-// v77：把版本号写进界面。源头只有 APP_VERSION 一个，HTML 里那两处只是首屏兜底文字。
+// v2：把版本号写进界面。源头只有 APP_VERSION 一个，HTML 里那两处只是首屏兜底文字。
 function renderVersion() {
   const a = document.getElementById('appVerAbout');
   if (a) a.textContent = APP_VERSION;
   const b = document.getElementById('appVer');
   if (b) b.textContent = APP_VERSION;
+}
+
+// v2：手动强制更新。
+// 平时 sw.js 是 network-first，但网络超过 3 秒没响应就会回退到本地缓存的旧页面（那是为了不卡启动页）；
+// 而且安卓上"点图标"常常只是把后台的 WebView 唤回来、根本不会重新加载 —— 两种情况下都会看到旧版。
+// 这个按钮把 Service Worker 和所有缓存清掉，再带一个随机参数重载，绕过 GitHub Pages 的 10 分钟 HTTP 缓存。
+async function forceUpdate() {
+  showToast('🔄 正在拉最新版…');
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { /* 清不掉也照样重载，尽力而为 */ }
+  const u = new URL(location.href);
+  u.searchParams.set('_u', Date.now());
+  location.replace(u.toString());
 }
 
 async function init() {
