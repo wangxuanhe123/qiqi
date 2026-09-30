@@ -351,6 +351,15 @@ body {
   padding: 0 4px;
   opacity: 0.8;
 }
+/* v3：回复用时/字数（诊断用，不写进历史） */
+.timing-note {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-top: 1px;
+  padding: 0 4px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Typing indicator */
 .typing-indicator {
@@ -1583,13 +1592,19 @@ const LEGACY_STYLE_MARKS = [
   '像妻子一样温柔亲昵；回复简短（1-3句）像微信聊天；旁白动作一两句即可；', // v72 及更早
   '【标点就是语气】',                                                       // v73
 ];
-// v76：长度规则从「一两句话，四十到六十字」放到「三到六句话，一百二到两百字」，旁白从「配菜」升到和台词各半。
-// 手机上「说话风格」存的是 v75 那份默认文案的副本，光改 DEFAULT_CHAR 到不了那儿；
+// v76/v3：手机上「说话风格」存的是某一代默认文案的副本，光改 DEFAULT_CHAR 到不了那儿；
 // 而按 LEGACY_STYLE_MARKS 整段替换又会把用户自己改过的部分一起冲掉。
-// 所以在下面就地把这【两句】换掉——别的字一个不碰。幂等：换过之后旧句子就没了，再跑不会重复换。
+// 所以在下面就地把那【两句】换掉——别的字一个不碰。幂等：换过之后旧句子就没了，再跑不会重复换。
+// 注意 [改前] 那一侧要把「历史上出现过的每一代说法」都列全，不然停在中间某一版的手机就换不到。
+const NEW_LEN_SENTENCE = '一条回复就是发一条微信：两到四句话，八十到一百二十字。你是隔着屏幕跟老公说话，不是写文章，但也不是两句话打发人——把这一轮该说的、该做的都写完整了再停。';
 const LEN_RULE_PAIRS = [
+  // 长度句：v75 及更早那句「四十到六十字」
   ['一条回复就是发一条微信：一两句话，四十到六十字，偶尔更短，很少更长。你是隔着屏幕跟老公说话，不是写文章，别铺陈。',
-   '一条回复就是发一条微信：三到六句话，一百二到两百字。你是隔着屏幕跟老公说话，不是写文章，但也不是两句话打发人——把这一轮该说的、该做的都写完整了再停。'],
+   NEW_LEN_SENTENCE],
+  // 长度句：v76 那句「一百二到两百字」（用户手机上很可能停在的这一版）
+  ['一条回复就是发一条微信：三到六句话，一百二到两百字。你是隔着屏幕跟老公说话，不是写文章，但也不是两句话打发人——把这一轮该说的、该做的都写完整了再停。',
+   NEW_LEN_SENTENCE],
+  // 旁白定位句：v75 的「旁白是配菜」→ v76 的「各占一半」。比例本身没再改，这条只为把老版本补齐。
   ['括号旁白紧贴着台词，夹在台词中间或前后，一两句就够——写的是你脸上、手上、声音里那点藏不住的东西。旁白是配菜，你对老公说出口的那句话才是主角。',
    '括号旁白和台词大致各占一半，交替着来，夹在台词中间或前后都行——写的是你脸上、手上、声音里那点藏不住的东西，也写你周围正在发生的事。台词写你说出口的那句话。'],
 ];
@@ -1606,7 +1621,7 @@ const DEFAULT_CHAR = {
 省略号是你最顺手的东西：话到嘴边留半句、声音轻下去、心里那点小心思说不出口的时候，它自己就来了。不用刻意安排。
 
 【一条消息长什么样】
-一条回复就是发一条微信：三到六句话，一百二到两百字。你是隔着屏幕跟老公说话，不是写文章，但也不是两句话打发人——把这一轮该说的、该做的都写完整了再停。
+一条回复就是发一条微信：两到四句话，八十到一百二十字。你是隔着屏幕跟老公说话，不是写文章，但也不是两句话打发人——把这一轮该说的、该做的都写完整了再停。
 括号旁白和台词大致各占一半，交替着来，夹在台词中间或前后都行——写的是你脸上、手上、声音里那点藏不住的东西，也写你周围正在发生的事。台词写你说出口的那句话。
 （提醒：上面这些"你"是在对你说话。但你写出来的旁白里提到老公，也要写"你"——比如写"（余光却一直在你身上）"，别写成"他"。）
 
@@ -1645,8 +1660,8 @@ const CHARS_VERSION = 6;
 // v2（2026-09-30 重新起算）：界面上显示的版本号只有一个源头，就是这里。
 // 以前「我 → 关于」和设置页底部是两处写死的文字，每次部署只改 sw.js 的 CACHE_NAME，
 // 这两处就永远停在旧版本上（一直挂到 v75）。现在两处都从它渲染。
-// 注意：这里跟 sw.js 的 CACHE_NAME 是同一个号（qiqi-v2），部署时一起改。
-const APP_VERSION = 'v2';
+// 注意：这里跟 sw.js 的 CACHE_NAME 是同一个号（qiqi-v3），部署时一起改。
+const APP_VERSION = 'v3';
 
 // ── State ──
 let chars = [];
@@ -1655,6 +1670,10 @@ let config = { ...DEFAULT_CHAR };
 let apiKey = '';
 let darkMode = false;
 let temperature = 0.9;
+
+// v3：本轮发送的开始时间。用户报"回复慢"，但慢要能量出来才知道是几秒还是几十秒，
+// 所以在每条回复下面显示用时 + 字数（只挂 DOM、不写进历史，切页/重开就没了，纯诊断用）。
+let sendStartedAt = 0;
 let contextRounds = 20;
 let voiceEnabled = false;
 let cachedVoices = [];
@@ -2873,8 +2892,8 @@ const PERF_RULES = `【表演准则（始终遵守，优先级高于你之前的
 ③保持强度：不要因为延续之前的回复而变得平淡、省事——每一轮都要像第一次那样放开、露骨、有新鲜感；该露骨的场景就一路露骨到底，不要中途变含蓄。
 ④体裁锚定（这条最容易被你自己最近的写法带跑，每轮都要对照）：
   · 你是七七，一个温柔的女人——语气以人设为准，日常就温温柔柔地说，别冷、别冲、别支使人。
-  · **长度**：一条回复就是发一条微信，**三到六句话，一百二到两百字**。上一句写完了别急着收尾——把你这一刻想说的、想做的、想让他知道的那点东西都写出来，写满了再停。**写成一大段小说是错，两句话就打发过去也是错。**
-  · **本阶段规则优先于「说话风格」里关于长度、关于"简短"、关于"旁白是配菜"的任何说法**——那部分是按旧标准写的，一律以本条为准。只许比这个长，不许比这个短；真写到两百字出头了也不必硬删。
+  · **长度**：一条回复就是发一条微信，**两到四句话，八十到一百二十字**。上一句写完了别急着收尾——把你这一刻想说的、想做的、想让他知道的那点东西都写出来，写满了再停。**写成一大段小说是错，两句话就打发过去也是错。**
+  · **本阶段规则优先于「说话风格」里关于长度、关于"简短"、关于"旁白是配菜"的任何说法**——那部分是按旧标准写的，一律以本条为准。只许比这个长，不许比这个短；真写到一百二十字出头了也不必硬删。
   · **台词和括号旁白大致各占一半**。旁白不再是配菜：写你脸上、手上、声音里、身上那点藏不住的东西，也写你周围正在发生的事（锅里的动静、他衣服上的味道、屋里的光）。台词写你真正说出口的话——撒娇、使小性子、心里绕了几圈终于说出口的那一句。两者交替着来，别整段都是旁白，也别整段都是台词。
   · 省略号、征求同意的小问句（"好不好？""好吗？"）、语气词（哼、嘛、呢、呀）都是你说话的常态；emoji 和"～"偶尔一个。
   · 旁白里提到老公，也一律写"**你**"，**绝不写"他"**——你是在跟老公说话，不是写小说。
@@ -3619,6 +3638,17 @@ async function streamReply(messages, sendCharId) {
   if (fullResponse && !networkFailed) {
     const aiMsgId = await saveMessage({ role: 'assistant', content: fullResponse, charId: sendCharId });
     if (responseRow) responseRow.dataset.msgId = aiMsgId;
+    // v3：回复用时 + 字数，挂在气泡下面（只挂 DOM、不写进历史，切页/重开就没了）
+    if (responseRow && sendStartedAt) {
+      const secs = ((Date.now() - sendStartedAt) / 1000).toFixed(1);
+      const charCount = fullResponse.replace(/\s/g, '').length;
+      const note = document.createElement('div');
+      note.className = 'timing-note';
+      note.textContent = '⏱ ' + secs + ' 秒 · ' + charCount + ' 字';
+      const col = responseRow.querySelector('.msg-col');
+      if (col) col.appendChild(note);
+      sendStartedAt = 0;
+    }
     if (!userStopped) speak(fullResponse);  // 语音播报（设置里可开关，默认关）
   }
 
@@ -3650,6 +3680,7 @@ async function sendMessage() {
   renderImagePreview();
   userStopped = false;
   isGenerating = true;
+  sendStartedAt = Date.now();   // v3：计时起点（只诊断用，不落库）
   updateSendBtn();
   const sendCharId = activeCharId;  // capture so a mid-stream character switch won't mis-tag messages
 
@@ -4047,6 +4078,7 @@ async function regenerateFromAssistant(assistantId) {
   // Rebuild from the remaining history (ends with the last user message) and stream a fresh reply
   userStopped = false;
   isGenerating = true;
+  sendStartedAt = Date.now();   // v3：重说也要计时
   updateSendBtn();
   const sendCharId = activeCharId;
   try {
