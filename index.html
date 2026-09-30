@@ -1247,7 +1247,7 @@ textarea.setting-input {
         </div>
         <div class="me-item" onclick="openSubPage('about')">
           <span class="me-item-icon">ℹ️</span>
-          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · v75</div></div>
+          <div class="me-item-text"><div class="me-item-title">关于</div><div class="me-item-sub">七七 · <span id="appVerAbout">v77</span></div></div>
           <span class="me-item-arrow">›</span>
         </div>
       </div>
@@ -1465,7 +1465,7 @@ textarea.setting-input {
             <div class="card-body">
               <p class="opt-sub" style="text-align:center;">
                 七七的私人小窝 · 数据全存本地 · 安心私密<br>
-                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v75</span>
+                Powered by DeepSeek · <span id="appVer" style="color:var(--accent)">v77</span>
               </p>
             </div>
           </div>
@@ -1636,6 +1636,11 @@ const DEFAULT_CHARS = [
 ];
 
 const CHARS_VERSION = 6;
+
+// v77：界面上显示的版本号只有一个源头，就是这里。
+// 以前「我 → 关于」和设置页底部是两处写死的文字，每次部署只改 sw.js 的 CACHE_NAME，
+// 这两处就永远停在旧版本上（一直到 v76 还显示着 v75）。以后要升版本，改这一行 + sw.js 的 CACHE_NAME。
+const APP_VERSION = 'v77';
 
 // ── State ──
 let chars = [];
@@ -4095,6 +4100,14 @@ function initKeyboardDetection() {
 // ============================================================
 // Init
 // ============================================================
+// v77：把版本号写进界面。源头只有 APP_VERSION 一个，HTML 里那两处只是首屏兜底文字。
+function renderVersion() {
+  const a = document.getElementById('appVerAbout');
+  if (a) a.textContent = APP_VERSION;
+  const b = document.getElementById('appVer');
+  if (b) b.textContent = APP_VERSION;
+}
+
 async function init() {
   // Register Service Worker
   if ('serviceWorker' in navigator) {
@@ -4107,6 +4120,7 @@ async function init() {
   }
 
   loadSettings();
+  renderVersion();
   switchTab('role');
   await loadChatHistory();
   setStatus('online');
