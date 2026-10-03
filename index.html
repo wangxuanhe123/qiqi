@@ -1663,8 +1663,8 @@ const CHARS_VERSION = 6;
 // v2（2026-09-30 重新起算）：界面上显示的版本号只有一个源头，就是这里。
 // 以前「我 → 关于」和设置页底部是两处写死的文字，每次部署只改 sw.js 的 CACHE_NAME，
 // 这两处就永远停在旧版本上（一直挂到 v75）。现在两处都从它渲染。
-// 注意：这里跟 sw.js 的 CACHE_NAME 是同一个号（qiqi-v8），部署时一起改。
-const APP_VERSION = 'v8';
+// 注意：这里跟 sw.js 的 CACHE_NAME 是同一个号（qiqi-v9），部署时一起改。
+const APP_VERSION = 'v9';
 
 // ── State ──
 let chars = [];
@@ -3450,18 +3450,30 @@ function toHistoryContent(m) {
   return m.content || '';
 }
 
-// ── v74：结构防漂 —— 历史里只留她的"台词"，剃掉括号旁白 ──
-// 长对话里模型抄的是自己上一轮，而它最容易抄、也最容易走样的就是旁白
-// （同一批小动作：声音越来越小 / 吸吸鼻子 / 攥衣角，反复用）。
-// 把更早历史里的旁白剃掉，她能模仿的只剩"跟你说话"这一面 ——
-// 自模仿就从"越抄越飘"变成"越抄越像她"。
+// ── 剃旁白（v74 的机制，v9 起【关闭】）──
+// v74 的想法：长对话里她抄的是自己上一轮，最容易抄走样的是括号旁白
+// （同一批小动作反复用）。把更早历史里的旁白剃掉，她就只能模仿"跟你说话"这一面。
+// 论证来自豆包语料："17 万条不飘 → 自模仿是放大器不是病"。放大器这话没错，
+// **但放大器放大的是"她自己的样子"，而剃完之后她自己的样子里没有括号。**
 // 只剃她的，不剃用户的：用户写的是剧情（谁在哪、发生了什么），剃了会串戏。
-const NARRATION_KEEP_TAIL = 4; // 最近 4 条她的回复原样保留（那是"她此刻的心情"，要连续）
-// v8：这个数字和"动态禁句表"的取样窗口【绑死】—— 禁句表也只看最近 NARRATION_KEEP_TAIL 条。
-// 理由（这是 v8 的核心）：她【看得见的旁白】必须正好等于【被禁掉的旁白】。
-// 以前 keep=2 而禁句表也取 2，是对齐的；若只把 keep 提到 4 而禁句表还看 2，
-// 那多出来的 2 条就成了"看得见却抄得到"的漏洞 —— 旁白回来了，重复也跟着回来。
-// 两边一起动，等于"看得见的那批刚好抄不到"。改这个数字时，禁句表会跟着一起改，别单独调。
+//
+// ── 2026-10-03 实测：这个机制有害，关掉 ──
+// 用户导出 103 轮真实记录（21:16→21:58，v8 代码），按"括号里的字占该条总字数"统计：
+//   她每轮看得见自己最近 20 条（contextRounds=20），其中 16 条被剃成纯台词。
+//   旁白占比：第 1~10 条 62% → 31~50 条 ~40% → 71~80 条 31% → **81~103 条 0%**
+//   （最后 23 条一个括号都没有）。全程 0.7 小时，从"一半旁白"滑到"完全没有"。
+// **不是"忽有忽无"，是单调衰减到死**：开头没有历史可抄，她照人设写（各占一半）；
+// 聊久了眼前堆满"七七不写括号"，她也就不写了。人设规则压不过自模仿，哪怕权重最高。
+// v8 把保留条数 2→4，只把信号从 10% 提到 16%，两头都离"一半"很远，所以 v8 无效。
+//
+// 结论：她要能看见"七七是会写括号的"这个事实。想重新打开就把下面改成 true（代码原样没删）。
+// 代价（早知道早认）：当初要治的"小动作反复用"可能回来 —— 真回来了，
+// 正确的解法是让 v70 禁句表也能抽台词（实测里重复最凶的恰恰是台词：
+// 「……老公」59 次、「嗯啊……」47 次，而禁句表现在只抽旁白），**而不是再把她自己的旁白藏起来**。
+const NARRATION_STRIP_ON = false;
+const NARRATION_KEEP_TAIL = 4; // 只在 NARRATION_STRIP_ON 时有效：最近 4 条原样保留
+// 动态禁句表的取样窗口。v9：以前跟上面那个数绑死（v8 设计），剃旁白关了之后独立成数。
+const BAN_PHRASE_WINDOW = 4;
 // 只匹配【单行、不嵌套括号】的旁白 —— 宁可漏剃，也绝不误吞跨行的台词。
 const NARRATION_RE = /[（(][^（()）\n]{0,200}[）)]/g;
 function stripNarration(text) {
@@ -3491,15 +3503,14 @@ async function buildMessages({ newUserText = null, newUserImage = null, historyO
 
   // Deduplicate consecutive identical messages (prevents the "连着两声" bug on re-send)
   const deduped = [];
-  // v74：历史里她的旁白只留最近 NARRATION_KEEP_TAIL 条，更早的一律剃成纯台词。
-  // （最近几条不剃：① 它们是她此刻的情绪，要连续；② v70 的动态禁句表盯着【同样这几条】，
-  //   两者分工——保留的用"禁句表"挡，更早的用"剃旁白"防，正好卡在一起、不重叠。
-  //   v8：两个数字绑死，别单独改其中一个，否则"看得见的旁白"会多出没被禁掉的那几条。）
+  // v74 的"剃旁白"：历史里她更早的旁白剃成纯台词，只留最近 NARRATION_KEEP_TAIL 条。
+  // v9 起已关闭（见上面 NARRATION_STRIP_ON 的注释：实测就是它把她的括号一路逼没的）。
+  // 关掉之后 keepFrom 恒为 -1，历史原样保留，默认路径不再走 stripNarration。
   const asstIdx = [];
   verbatim.forEach((m, i) => { if (m.role === 'assistant') asstIdx.push(i); });
-  const keepFrom = asstIdx.length > NARRATION_KEEP_TAIL
+  const keepFrom = (NARRATION_STRIP_ON && asstIdx.length > NARRATION_KEEP_TAIL)
     ? asstIdx[asstIdx.length - NARRATION_KEEP_TAIL]
-    : -1; // 不足 2 条就全留
+    : -1;
   const pending = [
     ...verbatim.map((m, i) => {
       const content = toHistoryContent(m);
@@ -3527,8 +3538,8 @@ async function buildMessages({ newUserText = null, newUserImage = null, historyO
     // v68：准则放最后 —— 离生成最近，权重最高，专门用来压住"抄自己上一轮"
     tail.push(PERF_RULES);
     // v70：动态禁句表，紧跟在准则之后（最靠后 = 最具体、最贴生成点）
-    // v8：取样窗口 = NARRATION_KEEP_TAIL，跟"历史保留几条旁白"绑死（见上面那个常量的注释）。
-    const banned = extractUsedPhrases(deduped.filter(m => m.role === 'assistant').slice(-NARRATION_KEEP_TAIL).map(m => m.content));
+    // v9：取样窗口独立成 BAN_PHRASE_WINDOW（以前跟"剃旁白保留几条"绑死，剃旁白已关，那套绑定作废）。
+    const banned = extractUsedPhrases(deduped.filter(m => m.role === 'assistant').slice(-BAN_PHRASE_WINDOW).map(m => m.content));
     if (banned.length) tail.push(`【本轮换个说法（这些是你刚用过的写法，本轮一个字都别再出现——**禁的是说法，不是旁白**：旁白照写、一句都不许少，只是换批新的说法来写）】\n${banned.join('、')}`);
     const suffix = '\n\n' + tail.join('\n\n');
     if (Array.isArray(last.content)) {
