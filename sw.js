@@ -1,5 +1,5 @@
 // Service Worker for 七七 · AI伴侣
-const CACHE_NAME = 'qiqi-v9';   // 跟 index.html 的 APP_VERSION 同一个号，部署时一起改
+const CACHE_NAME = 'qiqi-v10';   // 跟 index.html 的 APP_VERSION 同一个号，部署时一起改
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json'
