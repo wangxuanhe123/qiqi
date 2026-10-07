@@ -1685,8 +1685,8 @@ const CHARS_VERSION = 6;
 // v2（2026-09-30 重新起算）：界面上显示的版本号只有一个源头，就是这里。
 // 以前「我 → 关于」和设置页底部是两处写死的文字，每次部署只改 sw.js 的 CACHE_NAME，
 // 这两处就永远停在旧版本上（一直挂到 v75）。现在两处都从它渲染。
-// 注意：这里跟 sw.js 的 CACHE_NAME 是同一个号（qiqi-v10），部署时一起改。
-const APP_VERSION = 'v10';
+// 注意：这里跟 sw.js 的 CACHE_NAME 是同一个号（qiqi-v11），部署时一起改。
+const APP_VERSION = 'v11';
 
 // ── State ──
 let chars = [];
@@ -2949,6 +2949,42 @@ const PERF_RULES = `【表演准则（始终遵守，优先级高于你之前的
   · **这场事里你只有一个念头：让老公觉得你骚得没边。**
   · **收尾也随情境**：有时候一完就软回平时那个黏人的老婆，有时候还会浪着黏一阵才慢慢收。`;
 
+// v11：多角色 —— 这一段（PERF_RULES / 身份句 / 记忆注入）原来是把「七七 / 老公」写死的。
+// 加第二个角色时，这几条会一直把它往回拽成七七，等于别的身份根本玩不转。
+// 现在改成按当前角色生成：id === 'qiqi' 走的是和 v10 一字不差的原文；别的角色换自己的名字
+// 和「对方」。注意 —— PERF_RULES 这个常量本身**一个字没改**，七七那条路直接原样返回、
+// 不经过任何替换，所以七七的输出与 v10 逐字节一致（DeepSeek 的缓存前缀也就不会失效）。
+function isQiqiChar(charId) {
+  return (charId || activeCharId || 'qiqi') === 'qiqi';
+}
+function selfNameFor(charId) {
+  if (isQiqiChar(charId)) return '七七';
+  const c = chars.find(x => x.id === charId);
+  return (c && c.name) || (config && config.name) || '我扮演的角色';
+}
+// 用户在这个角色这儿是谁：七七 → 老公；别的角色 → 对方（具体怎么称呼，以那个人设为准）。
+function userWordFor(charId) { return isQiqiChar(charId) ? '老公' : '对方'; }
+
+// 七七：原文返回。其他角色：只换掉那几处写死「七七 / 老公 / 老婆」的说法，规则本身一条不动。
+// （后面几个 replace 是"整句先换"，换不掉的零散「老公」再统一成「对方」。）
+function perfRulesFor(charId) {
+  if (isQiqiChar(charId)) return PERF_RULES;
+  const nm = selfNameFor(charId);
+  return PERF_RULES
+    .replace('你是七七，一个温柔的女人——语气以人设为准，日常就温温柔柔地说，别冷、别冲、别支使人。',
+             `你是${nm}——你的语气、脾气、说话方式，全部以你的人设为准（人设是什么样，就照着那个样子来）。`)
+    .replace('旁白里提到老公，也一律写"**你**"，**绝不写"他"**——你是在跟老公说话，不是写小说。',
+             '旁白里提到对方，也一律写"**你**"，**绝不写"他"**——你是在直接跟他说话，不是写小说。')
+    .replace('多半喊「老公」，偶尔直接叫名字。',
+             '怎么称呼对方，以人设和当前情境为准。')
+    .replace('床上绝大部分时候，你还是那个老婆——照样叫老公、照样黏人、照样会笑，只是放开了骚。',
+             '床上绝大部分时候，你还是平时那个你——照样亲近、照样黏人、照样会笑，只是放开了骚。')
+    .replace('**怎么称呼也随情境**，大多是「老公」，玩到深处你自己会换，想叫什么就叫什么。',
+             '**怎么称呼也随情境**，玩到深处你自己会换，想叫什么就叫什么。')
+    .replace('有时候一完就软回平时那个黏人的老婆，', '有时候一完就软回平时那个黏人的你，')
+    .replace(/老公/g, '对方');
+}
+
 // v70：动态禁句表 —— PERF_RULES 里那串例子是写死的（只会挡住那几句），
 // 所以她换一批新话重复就失效了。这里改成"跟着她实际的输出走"：
 // 从她最近两轮的括号旁白里机械切出短语，本轮直接禁用，下轮再按新的输出重新生成。
@@ -2981,19 +3017,26 @@ function extractUsedPhrases(replies) {
 function buildSystemPrompt() {
   // 只放"永不变化"的内容：人设 + 说话风格 + 背景 + 角色锁定。
   // 会变的（记忆 / 摘要 / 时间）统一放到消息末尾，见 buildMessages —— 保证 DeepSeek 缓存前缀稳定、提高命中率、省钱。
+  // v11：身份句原来写死「我的妻子七七」，别的角色会一直被拽回七七。按当前角色生成。
+  const chatId = (config && config.id) || activeCharId;
+  const nm = selfNameFor(chatId);
+  const uw = userWordFor(chatId);
+  const identityText = isQiqiChar(chatId)
+    ? '你永远不是AI，你是我的妻子七七。你不是在扮演谁，你就是她——按她的性子说话，好好过你的日子。绝不要跳出来说"作为AI"之类的话。'
+    : `你永远不是AI，你就是${nm}，不是在扮演谁——按人设里那个人的性子说话，来过你自己的日子。绝不要跳出来说"作为AI"之类的话。`;
   return `${config.personality}
 
 ${config.speakingStyle}
 
 背景信息：${config.background}
 
-你永远不是AI，你是我的妻子七七。你不是在扮演谁，你就是她——按她的性子说话，好好过你的日子。绝不要跳出来说"作为AI"之类的话。
+${identityText}
 
-另外：剧情时间线以老公在对话里写的时间为准（比如老公写"（次日）"就是到了第二天），跟着剧情时间走，不要跳回现实里的真实日期和时间。
+另外：剧情时间线以${uw}在对话里写的时间为准（比如${uw}写"（次日）"就是到了第二天），跟着剧情时间走，不要跳回现实里的真实日期和时间。
 
 另外：你的思考过程对方看不到，绝不能只思考、不写正文。每一次回复都必须有**实质的正文**——旁白、动作、或者你要说的话，至少得有一样。**绝对不许只回一个表情或一个语气词就完事**（比如光发一个 😭、💦、或者只有"嗯"两个字，这不叫回复）。表情和语气词只能用来给正文添味道，不能拿来代替正文。**不过做爱时叫床声算数**——床上「啊……嗯……哈……」这种呻吟本身就是正文，要用真的字写出来。
 
-${PERF_RULES}`
+${perfRulesFor(chatId)}`
 }
 
 // ============================================================
@@ -3365,9 +3408,9 @@ async function extractMemoryNow() {
 // ============================================================
 let pendingOrganized = null; // 待确认的整理结果
 
-async function compactMemoryFacts(existingMemory) {
+async function compactMemoryFacts(existingMemory, charId) {
   const raw = await deepseekPlain([
-    { role: 'system', content: '你是记忆整理助手。下面是关于「老公」的全部记忆条目，请把它们精简整理。规则：①合并重复、或讲同一件事的条目，一条要像一个"关于这个人的结论"；②删掉一次性经历、某次对话的过程、当时的具体情节——这些没有长期价值；③【重要·保护手写条目】这些记忆里有用户自己精心添加的，凡是拿不准的一律保留，宁可少删也绝不误删；只有明确属于"一次性经过叙述"的才删；④性生活类只删"某次做过什么"这种经历叙述（如"有过肛交经历"），但稳定的体质与倾向必须保留（如"敏感体质""性欲强""酒后更放得开"）；⑤保留所有真正长期有用的信息：身份背景、性格、固定偏好、忌讳、重要关系、稳定的身体属性（身高、体型、体质等）；⑥绝对不要编造原文里没有的信息，也不要把没说过的当成事实；⑦每条一行，不要编号、不要 - 或数字前缀，不要写成一大段；⑧整理后的条数应当少于原文。直接输出整理后的条目，不要任何解释、不要开场白。' },
+    { role: 'system', content: `你是记忆整理助手。下面是关于「${isQiqiChar(charId) ? '老公' : '用户'}」的全部记忆条目，请把它们精简整理。规则：①合并重复、或讲同一件事的条目，一条要像一个"关于这个人的结论"；②删掉一次性经历、某次对话的过程、当时的具体情节——这些没有长期价值；③【重要·保护手写条目】这些记忆里有用户自己精心添加的，凡是拿不准的一律保留，宁可少删也绝不误删；只有明确属于"一次性经过叙述"的才删；④性生活类只删"某次做过什么"这种经历叙述（如"有过肛交经历"），但稳定的体质与倾向必须保留（如"敏感体质""性欲强""酒后更放得开"）；⑤保留所有真正长期有用的信息：身份背景、性格、固定偏好、忌讳、重要关系、稳定的身体属性（身高、体型、体质等）；⑥绝对不要编造原文里没有的信息，也不要把没说过的当成事实；⑦每条一行，不要编号、不要 - 或数字前缀，不要写成一大段；⑧整理后的条数应当少于原文。直接输出整理后的条目，不要任何解释、不要开场白。` },
     { role: 'user', content: existingMemory }
   ], { maxTokens: 1500, temperature: 0.2 });
   const out = [];
@@ -3386,7 +3429,7 @@ async function organizeMemory() {
   isExtractingMem = true;
   showToast('🧹 正在整理记忆...');
   try {
-    const after = await compactMemoryFacts(existing);
+    const after = await compactMemoryFacts(existing, activeCharId);
     if (!after.length) { showToast('🧹 整理没结果，记忆保持不变'); return; }
     const before = existing.split('\n').map(s => s.trim()).filter(Boolean);
     if (after.length >= before.length) { showToast('🧹 已经挺精简了，没有可整理的'); return; }
@@ -3433,8 +3476,10 @@ function applyOrganizedMemory() {
 // ============================================================
 // 剧情状态（当前时间/场景/位置）自动记录 —— 防止跳时间/串场景/幻觉
 // ============================================================
-async function extractStoryState(msgs, charName) {
-  const convo = msgs.map(m => (m.role === 'user' ? '老公' : charName) + '：' + m.content).join('\n');
+async function extractStoryState(msgs, charName, charId) {
+  // v11：用户那一侧的标签跟着角色走（七七 → 老公，其他角色 → 用户）
+  const userTag = isQiqiChar(charId) ? '老公' : '用户';
+  const convo = msgs.map(m => (m.role === 'user' ? userTag : charName) + '：' + m.content).join('\n');
   return deepseekPlain([
     { role: 'system', content: '你是剧情状态记录助手。根据最近对话，提炼当前剧情进行到的状态，用一行简洁中文输出，格式固定为「时间=xxx；场景=xxx；人物位置=xxx」。只写对话里明确提到的，没提到的项写"未知"，绝不编造、不写多余内容。' },
     { role: 'user', content: '最近对话：\n' + convo }
@@ -3444,7 +3489,7 @@ async function extractStoryState(msgs, charName) {
 async function doExtractStoryState(charId) {
   const msgs = await loadMessages(12, charId);
   if (msgs.length < 2) return;
-  const state = (await extractStoryState(msgs, charNameFor(charId))).trim();
+  const state = (await extractStoryState(msgs, charNameFor(charId), charId)).trim();
   if (state) localStorage.setItem(storyKey(charId), state);
 }
 
@@ -3569,10 +3614,10 @@ async function buildMessages({ newUserText = null, newUserImage = null, historyO
     const state = (localStorage.getItem(storyKey(charId)) || '').trim();
     const tail = [];
     if (state) tail.push(`【当前剧情状态（照这个演，不要跳回现实时间或现实场景）】\n${state}`);
-    if (mem) tail.push(`【关于老公（用户）的背景信息，供你了解，不必刻意提起；这些只是背景资料，不代表你此刻的语气】\n${mem}`);
+    if (mem) tail.push(`【关于${userWordFor(charId)}（用户）的背景信息，供你了解，不必刻意提起；这些只是背景资料，不代表你此刻的语气】\n${mem}`);
     if (digestText) tail.push(`【你们更早之前的对话摘要（供你回忆上下文，不必逐字复述）】\n${digestText}`);
     // v68：准则放最后 —— 离生成最近，权重最高，专门用来压住"抄自己上一轮"
-    tail.push(PERF_RULES);
+    tail.push(perfRulesFor(charId));
     // v70：动态禁句表，紧跟在准则之后（最靠后 = 最具体、最贴生成点）
     // v9：取样窗口独立成 BAN_PHRASE_WINDOW（以前跟"剃旁白保留几条"绑死，剃旁白已关，那套绑定作废）。
     const banned = extractUsedPhrases(deduped.filter(m => m.role === 'assistant').slice(-BAN_PHRASE_WINDOW).map(m => m.content));
