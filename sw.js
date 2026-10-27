@@ -1,5 +1,5 @@
 // Service Worker for 七七 · AI伴侣
-const CACHE_NAME = 'qiqi-v33';   // 跟 index.html 的 APP_VERSION 同一个号，部署时一起改
+const CACHE_NAME = 'qiqi-v34';   // 跟 index.html 的 APP_VERSION 同一个号，部署时一起改
 // 只清理七七自己的旧缓存。缓存是"按站点"共享的，七七和七七B 在同一个域名下，
 // 以前这里删掉"除我以外的一切"，谁更新一次就把对方的缓存也清了。
 const CACHE_PREFIX = 'qiqi-v';
